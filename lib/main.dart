@@ -1,39 +1,25 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'presentation/screens/login/login_screen.dart';
+import 'core/theme/app_theme.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
-void main() {
-  runApp(const invoicely_desktopApp());
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await dotenv.load(fileName: ".env");
+  runApp(const ProviderScope(child: InvoicelyApp()));
 }
 
-class invoicely_desktopApp extends StatelessWidget {
-  const invoicely_desktopApp({super.key});
+class InvoicelyApp extends StatelessWidget {
+  const InvoicelyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Invoicely',
+      title: 'Invoicely Desktop',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.indigo),
-        useMaterial3: true,
-      ),
-      home: const HomeScreen(),
-    );
-  }
-}
-
-class HomeScreen extends StatelessWidget {
-  const HomeScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Invoicely')),
-      body: const Center(
-        child: Text(
-          '🚀 Bem-vindo ao Invoicely!',
-          style: TextStyle(fontSize: 22),
-        ),
-      ),
+      theme: AppTheme.darkTheme,
+      home: const LoginScreen(),
     );
   }
 }
