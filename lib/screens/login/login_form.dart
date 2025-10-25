@@ -1,17 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../domain/auth/login_notifier.dart';
-import '../../../domain/auth/login_state.dart';
+import '../../providers/login_provider.dart';
+import '../../data/models/login_state.dart';
 
 class LoginForm extends ConsumerStatefulWidget {
-  final TextEditingController emailController;
-  final TextEditingController passwordController;
-
-  const LoginForm({
-    super.key,
-    required this.emailController,
-    required this.passwordController,
-  });
+  const LoginForm({super.key});
 
   @override
   ConsumerState<LoginForm> createState() => _LoginFormState();
@@ -19,6 +12,8 @@ class LoginForm extends ConsumerStatefulWidget {
 
 class _LoginFormState extends ConsumerState<LoginForm> {
   bool _obscurePassword = true;
+  final emailController = TextEditingController();
+  final passwordController = TextEditingController();
 
   @override
   Widget build(BuildContext context) {
@@ -75,7 +70,7 @@ class _LoginFormState extends ConsumerState<LoginForm> {
               ),
               const SizedBox(height: 8),
               TextField(
-                controller: widget.emailController,
+                controller: emailController,
                 decoration: const InputDecoration(
                   hintText: 'Insira o seu email',
                   border: OutlineInputBorder(
@@ -101,10 +96,10 @@ class _LoginFormState extends ConsumerState<LoginForm> {
               ),
               const SizedBox(height: 8),
               TextField(
-                controller: widget.passwordController,
+                controller: passwordController,
                 obscureText: _obscurePassword,
                 decoration: InputDecoration(
-                  hintText: 'Inseria a sua password',
+                  hintText: 'Insira a sua password',
                   border: const OutlineInputBorder(
                     borderSide: BorderSide(color: Colors.grey),
                   ),
@@ -155,8 +150,8 @@ class _LoginFormState extends ConsumerState<LoginForm> {
                       ? null
                       : () {
                           ref.read(loginProvider.notifier).login(
-                                widget.emailController.text.trim(),
-                                widget.passwordController.text.trim(),
+                                emailController.text.trim(),
+                                passwordController.text.trim(),
                               );
                         },
                   style: ElevatedButton.styleFrom(
