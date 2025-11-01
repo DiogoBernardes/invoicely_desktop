@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../config/dio_config.dart';
@@ -45,7 +44,6 @@ class CompanyService {
         ),
       );
 
-      print('Resposta do servidor: ${response.data}');
       return CompanyResponseDTO.fromJson(response.data);
     } on DioException catch (e) {
       if (e.response?.statusCode == 403) {

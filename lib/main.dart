@@ -16,7 +16,7 @@ Future<void> main() async {
   await windowManager.ensureInitialized();
 
   WindowOptions windowOptions = const WindowOptions(
-    title: "Invoicely Desktop",
+    title: "Invoicely",
     center: true,
     skipTaskbar: false,
     titleBarStyle: TitleBarStyle.normal,
@@ -48,7 +48,7 @@ class InvoicelyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Invoicely Desktop',
+      title: 'Invoicely',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.darkTheme,
       home: const LoginScreen(),
