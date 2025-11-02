@@ -1,9 +1,9 @@
 import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../config/dio_config.dart';
-import '../../dto/company/company_create_dto.dart';
-import '../../dto/company/company_update_dto.dart';
-import '../../dto/company/company_response_dto.dart';
+import '../dto/company/company_create_dto.dart';
+import '../dto/company/company_update_dto.dart';
+import '../dto/company/company_response_dto.dart';
 
 class CompanyService {
   final Dio _dio = DioClient().dio;

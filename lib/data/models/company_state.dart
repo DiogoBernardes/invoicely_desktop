@@ -1,10 +1,10 @@
 enum CompanyStatus { initial, loading, success, error }
 
-class LoginState {
+class CompanyState {
   final CompanyStatus status;
   final String? errorMessage;
 
-  const LoginState({
+  const CompanyState({
     this.status = CompanyStatus.initial,
     this.errorMessage,
   });
@@ -13,11 +13,11 @@ class LoginState {
   bool get success => status == CompanyStatus.success;
   bool get isError => status == CompanyStatus.error;
 
-  LoginState copyWith({
+  CompanyState copyWith({
     CompanyStatus? status,
     String? errorMessage,
   }) {
-    return LoginState(
+    return CompanyState(
       status: status ?? this.status,
       errorMessage: errorMessage ?? this.errorMessage,
     );

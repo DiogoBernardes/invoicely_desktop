@@ -2,7 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import '../../data/services/company_service.dart';
-import '../../dto/company/company_create_dto.dart';
+import '../../data/dto/company/company_create_dto.dart';
 import '../dashboard/dashboard_screen.dart';
 
 class CompanyForm extends StatefulWidget {
