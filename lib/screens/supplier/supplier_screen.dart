@@ -1,22 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../data/dto/client/client_create_dto.dart';
-import '../../data/dto/client/client_response_dto.dart';
-import '../../data/dto/client/client_update_dto.dart';
-import '../../providers/client_provider.dart';
-import '../../widgets/dialogs/client/add_client_dialog.dart';
-import '../../widgets/dialogs/client/edit_client_dialog.dart';
-import '../../widgets/dialogs/client/remove_client_dialog.dart';
+import '../../data/dto/supplier/supplier_create_dto.dart';
+import '../../data/dto/supplier/supplier_response_dto.dart';
+import '../../data/dto/supplier/supplier_update_dto.dart';
+import '../../providers/supplier_provider.dart';
+import '../../widgets/dialogs/supplier/add_supplier_dialog.dart';
+import '../../widgets/dialogs/supplier/edit_supplier_dialog.dart';
+import '../../widgets/dialogs/supplier/remove_supplier_dialog.dart';
 import '../../widgets/global_app_bar.dart';
 
-class ClientScreen extends ConsumerStatefulWidget {
-  const ClientScreen({super.key});
+class SupplierScreen extends ConsumerStatefulWidget {
+  const SupplierScreen({super.key});
 
   @override
-  ConsumerState<ClientScreen> createState() => _ClientScreenState();
+  ConsumerState<SupplierScreen> createState() => _SupplierScreenState();
 }
 
-class _ClientScreenState extends ConsumerState<ClientScreen> {
+class _SupplierScreenState extends ConsumerState<SupplierScreen> {
   final TextEditingController _searchController = TextEditingController();
   int _currentPage = 0;
   final int _rowsPerPage = 10;
@@ -24,10 +24,10 @@ class _ClientScreenState extends ConsumerState<ClientScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final clientsAsync = ref.watch(clientNotifierProvider);
+    final suppliersAsync = ref.watch(supplierNotifierProvider);
 
     return Scaffold(
-      appBar: const GlobalAppBar(title: 'Clients'),
+      appBar: const GlobalAppBar(title: 'Suppliers'),
       drawer: const GlobalDrawer(),
       body: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 80, vertical: 60),
@@ -39,16 +39,16 @@ class _ClientScreenState extends ConsumerState<ClientScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 const Text(
-                  'Clientes',
+                  'Fornecedores',
                   style: TextStyle(
                       fontSize: 36,
                       fontWeight: FontWeight.bold,
                       color: Colors.white),
                 ),
                 ElevatedButton.icon(
-                  onPressed: () => _showAddClientDialog(),
+                  onPressed: () => _showAddSupplierDialog(),
                   icon: const Icon(Icons.add, size: 20),
-                  label: const Text('Adicionar Cliente',
+                  label: const Text('Adicionar Fornecedor',
                       style: TextStyle(fontWeight: FontWeight.w600)),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color.fromARGB(255, 36, 54, 71),
@@ -86,9 +86,9 @@ class _ClientScreenState extends ConsumerState<ClientScreen> {
             const SizedBox(height: 32),
             // Table
             Expanded(
-              child: clientsAsync.when(
-                data: (clients) {
-                  final filtered = clients
+              child: suppliersAsync.when(
+                data: (suppliers) {
+                  final filtered = suppliers
                       .where((c) =>
                           c.name
                               .toLowerCase()
@@ -105,16 +105,16 @@ class _ClientScreenState extends ConsumerState<ClientScreen> {
                   final totalPages = (filtered.length / _rowsPerPage).ceil();
                   final startIndex = _currentPage * _rowsPerPage;
                   final endIndex = startIndex + _rowsPerPage;
-                  final pageClients = filtered.sublist(
+                  final pageSuppliers = filtered.sublist(
                     startIndex,
                     endIndex > filtered.length ? filtered.length : endIndex,
                   );
 
                   // sempre 10 linhas
-                  final displayClients = List.generate(
+                  final displaySuppliers = List.generate(
                       totalRows,
-                      (index) => index < pageClients.length
-                          ? pageClients[index]
+                      (index) => index < pageSuppliers.length
+                          ? pageSuppliers[index]
                           : null);
 
                   const cellPadding =
@@ -162,8 +162,8 @@ class _ClientScreenState extends ConsumerState<ClientScreen> {
                                     ),
                                   ),
                               ],
-                              rows: displayClients.map((client) {
-                                if (client == null) {
+                              rows: displaySuppliers.map((supplier) {
+                                if (supplier == null) {
                                   return DataRow(
                                     cells: List.generate(
                                       6,
@@ -179,31 +179,31 @@ class _ClientScreenState extends ConsumerState<ClientScreen> {
                                   cells: [
                                     DataCell(Container(
                                       padding: cellPadding,
-                                      child: Text(client.name,
+                                      child: Text(supplier.name,
                                           style: const TextStyle(
                                               color: Colors.white)),
                                     )),
                                     DataCell(Container(
                                       padding: cellPadding,
-                                      child: Text(client.nif,
+                                      child: Text(supplier.nif,
                                           style: const TextStyle(
                                               color: Colors.white70)),
                                     )),
                                     DataCell(Container(
                                       padding: cellPadding,
-                                      child: Text(client.address,
+                                      child: Text(supplier.address,
                                           style: const TextStyle(
                                               color: Colors.white70)),
                                     )),
                                     DataCell(Container(
                                       padding: cellPadding,
-                                      child: Text(client.phone,
+                                      child: Text(supplier.phone,
                                           style: const TextStyle(
                                               color: Colors.white70)),
                                     )),
                                     DataCell(Container(
                                       padding: cellPadding,
-                                      child: Text(client.email,
+                                      child: Text(supplier.email,
                                           style: const TextStyle(
                                               color: Colors.white70)),
                                     )),
@@ -214,13 +214,13 @@ class _ClientScreenState extends ConsumerState<ClientScreen> {
                                             icon: const Icon(Icons.edit,
                                                 size: 18),
                                             onPressed: () =>
-                                                _editClient(client),
+                                                _editSupplier(supplier),
                                             color: Colors.blue.shade400),
                                         IconButton(
                                             icon: const Icon(Icons.delete,
                                                 size: 18),
                                             onPressed: () =>
-                                                _removeClient(client),
+                                                _removeSupplier(supplier),
                                             color: Colors.red.shade400),
                                       ],
                                     )),
@@ -260,7 +260,7 @@ class _ClientScreenState extends ConsumerState<ClientScreen> {
                 },
                 loading: () => const Center(child: CircularProgressIndicator()),
                 error: (e, st) =>
-                    Center(child: Text('Erro ao carregar clientes: $e')),
+                    Center(child: Text('Erro ao carregar Fornecedores: $e')),
               ),
             )
           ],
@@ -269,54 +269,54 @@ class _ClientScreenState extends ConsumerState<ClientScreen> {
     );
   }
 
-  void _showAddClientDialog() {
+  void _showAddSupplierDialog() {
     showDialog(
       context: context,
-      builder: (_) => AddClientDialog(
-        onClientAdded: (newClient) async {
-          final dto = ClientCreateDTO(
-            name: newClient.name,
-            nif: newClient.nif,
-            email: newClient.email,
-            phone: newClient.phone,
-            address: newClient.address,
+      builder: (_) => AddSupplierDialog(
+        onSupplierAdded: (newSupplier) async {
+          final dto = SupplierCreateDto(
+            name: newSupplier.name,
+            nif: newSupplier.nif,
+            email: newSupplier.email,
+            phone: newSupplier.phone,
+            address: newSupplier.address,
           );
-          await ref.read(clientNotifierProvider.notifier).createClient(dto);
+          await ref.read(supplierNotifierProvider.notifier).createSupplier(dto);
         },
       ),
     );
   }
 
-  void _editClient(ClientResponseDTO client) {
+  void _editSupplier(SupplierResponseDto supplier) {
     showDialog(
       context: context,
-      builder: (_) => EditClientDialog(
-        client: client,
-        onClientAdded: (editedClient) async {
-          final dto = ClientUpdateDTO(
-            name: editedClient.name,
-            nif: editedClient.nif,
-            email: editedClient.email,
-            phone: editedClient.phone,
-            address: editedClient.address,
+      builder: (_) => EditSupplierDialog(
+        supplier: supplier,
+        onSupplierEdited: (editedSupplier) async {
+          final dto = SupplierUpdateDto(
+            name: editedSupplier.name,
+            nif: editedSupplier.nif,
+            email: editedSupplier.email,
+            phone: editedSupplier.phone,
+            address: editedSupplier.address,
           );
           await ref
-              .read(clientNotifierProvider.notifier)
-              .updateClient(client.id, dto);
+              .read(supplierNotifierProvider.notifier)
+              .updateSupplier(supplier.id, dto);
         },
       ),
     );
   }
 
-  void _removeClient(ClientResponseDTO client) async {
+  void _removeSupplier(SupplierResponseDto supplier) async {
     await showDialog<bool>(
       context: context,
-      builder: (_) => RemoveClientDialog(
-        client: client,
+      builder: (_) => RemoveSupplierDialog(
+        supplier: supplier,
         onConfirmed: () async {
           await ref
-              .read(clientNotifierProvider.notifier)
-              .deleteClient(client.id);
+              .read(supplierNotifierProvider.notifier)
+              .deleteSupplier(supplier.id);
         },
       ),
     );

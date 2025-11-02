@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../providers/menu_provider.dart';
 import '../screens/client/client_screen.dart';
 import '../screens/dashboard/dashboard_screen.dart';
+import '../screens/supplier/supplier_screen.dart';
 
 class GlobalAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String title;
@@ -85,6 +86,7 @@ class GlobalDrawer extends StatelessWidget {
     final items = {
       'Dashboard': const DashboardScreen(),
       'Clients': const ClientScreen(),
+      'Suppliers': const SupplierScreen(),
     };
 
     return Drawer(
@@ -126,6 +128,7 @@ class _NavMenu extends ConsumerWidget {
     final routes = {
       'Dashboard': const DashboardScreen(),
       'Clients': const ClientScreen(),
+      'Suppliers': const SupplierScreen(),
     };
 
     return Row(
@@ -157,12 +160,13 @@ class _NavMenu extends ConsumerWidget {
                   style: TextStyle(
                     fontWeight:
                         isSelected ? FontWeight.w700 : FontWeight.normal,
+                    fontSize: 16,
                     color: isSelected
                         ? const Color.fromARGB(255, 129, 183, 245)
                         : Colors.white,
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 1),
                 AnimatedContainer(
                   duration: const Duration(milliseconds: 200),
                   height: 2,
