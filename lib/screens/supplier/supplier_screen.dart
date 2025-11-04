@@ -27,7 +27,7 @@ class _SupplierScreenState extends ConsumerState<SupplierScreen> {
     final suppliersAsync = ref.watch(supplierNotifierProvider);
 
     return Scaffold(
-      appBar: const GlobalAppBar(title: 'Suppliers'),
+      appBar: const GlobalAppBar(title: 'Fornecedores'),
       drawer: const GlobalDrawer(),
       body: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 80, vertical: 60),

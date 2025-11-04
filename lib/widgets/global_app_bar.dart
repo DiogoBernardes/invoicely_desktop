@@ -5,6 +5,7 @@ import '../providers/menu_provider.dart';
 import '../screens/client/client_screen.dart';
 import '../screens/dashboard/dashboard_screen.dart';
 import '../screens/product/product_screen.dart';
+import '../screens/service/service_screen.dart';
 import '../screens/supplier/supplier_screen.dart';
 
 class GlobalAppBar extends StatelessWidget implements PreferredSizeWidget {
@@ -86,9 +87,10 @@ class GlobalDrawer extends StatelessWidget {
   Widget build(BuildContext context) {
     final items = {
       'Dashboard': const DashboardScreen(),
-      'Clients': const ClientScreen(),
-      'Suppliers': const SupplierScreen(),
-      'Products': const ProductScreen(),
+      'Clientes': const ClientScreen(),
+      'Fornecedores': const SupplierScreen(),
+      'Produtos': const ProductScreen(),
+      'Serviços': const ServiceScreen(),
     };
 
     return Drawer(
@@ -129,9 +131,10 @@ class _NavMenu extends ConsumerWidget {
 
     final routes = {
       'Dashboard': const DashboardScreen(),
-      'Clients': const ClientScreen(),
-      'Suppliers': const SupplierScreen(),
-      'Products': const ProductScreen(),
+      'Clientes': const ClientScreen(),
+      'Fornecedores': const SupplierScreen(),
+      'Produtos': const ProductScreen(),
+      'Serviços': const ServiceScreen(),
     };
 
     return Row(

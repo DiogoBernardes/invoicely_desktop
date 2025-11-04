@@ -27,7 +27,7 @@ class _ClientScreenState extends ConsumerState<ClientScreen> {
     final clientsAsync = ref.watch(clientNotifierProvider);
 
     return Scaffold(
-      appBar: const GlobalAppBar(title: 'Clients'),
+      appBar: const GlobalAppBar(title: 'Clientes'),
       drawer: const GlobalDrawer(),
       body: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 80, vertical: 60),

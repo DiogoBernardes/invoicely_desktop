@@ -1,22 +1,22 @@
 import 'package:flutter/material.dart';
-import 'package:invoicely_desktop/data/dto/product/product_response_dto.dart';
+import '../../../data/dto/service/service_response_dto.dart';
 import '../custom_dialog.dart';
 
-class AddProductDialog extends StatefulWidget {
-  final ProductResponseDTO? product;
-  final void Function(ProductResponseDTO) onProductAdded;
+class AddServiceDialog extends StatefulWidget {
+  final ServiceResponseDTO? service;
+  final void Function(ServiceResponseDTO) onServiceAdded;
 
-  const AddProductDialog({
+  const AddServiceDialog({
     super.key,
-    this.product,
-    required this.onProductAdded,
+    this.service,
+    required this.onServiceAdded,
   });
 
   @override
-  State<AddProductDialog> createState() => _AddProductDialogState();
+  State<AddServiceDialog> createState() => _AddServiceDialogState();
 }
 
-class _AddProductDialogState extends State<AddProductDialog> {
+class _AddServiceDialogState extends State<AddServiceDialog> {
   late TextEditingController _nameController;
   late TextEditingController _descriptionController;
   late TextEditingController _priceController;
@@ -24,17 +24,17 @@ class _AddProductDialogState extends State<AddProductDialog> {
   @override
   void initState() {
     super.initState();
-    _nameController = TextEditingController(text: widget.product?.name ?? '');
+    _nameController = TextEditingController(text: widget.service?.name ?? '');
     _descriptionController =
-        TextEditingController(text: widget.product?.description ?? '');
+        TextEditingController(text: widget.service?.description ?? '');
     _priceController =
-        TextEditingController(text: widget.product?.price.toString() ?? '');
+        TextEditingController(text: widget.service?.price.toString() ?? '');
   }
 
   @override
   Widget build(BuildContext context) {
     return CustomDialog(
-      title: widget.product == null ? 'Adicionar Produto' : 'Editar Produto',
+      title: widget.service == null ? 'Adicionar Serviço' : 'Editar Serviço',
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -53,24 +53,24 @@ class _AddProductDialogState extends State<AddProductDialog> {
         ),
         ElevatedButton(
           onPressed: () {
-            final newProduct = ProductResponseDTO(
-              id: widget.product?.id ?? '',
+            final newService = ServiceResponseDTO(
+              id: widget.service?.id ?? '',
               name: _nameController.text,
               description: _descriptionController.text,
               price:
                   double.tryParse(_priceController.text.replaceAll(',', '.')) ??
                       0.0,
-              type: 'PRODUTO',
-              company: widget.product?.company,
+              type: 'SERVICO',
+              company: widget.service?.company,
             );
-            widget.onProductAdded(newProduct);
+            widget.onServiceAdded(newService);
             Navigator.pop(context);
           },
           style: ElevatedButton.styleFrom(
             backgroundColor: const Color.fromARGB(255, 36, 54, 71),
             foregroundColor: Colors.white,
           ),
-          child: Text(widget.product == null ? 'Adicionar' : 'Salvar'),
+          child: Text(widget.service == null ? 'Adicionar' : 'Salvar'),
         ),
       ],
     );

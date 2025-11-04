@@ -57,7 +57,9 @@ class _EditProductDialogState extends State<EditProductDialog> {
               id: widget.product?.id ?? '',
               name: _nameController.text,
               description: _descriptionController.text,
-              price: double.tryParse(_priceController.text) ?? 0.0,
+              price:
+                  double.tryParse(_priceController.text.replaceAll(',', '.')) ??
+                      0.0,
               type: 'PRODUTO',
               company: widget.product?.company,
             );

@@ -1,23 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:invoicely_desktop/data/dto/product/product_update_dto.dart';
-import 'package:invoicely_desktop/widgets/dialogs/products/add_product_dialog.dart';
-import 'package:invoicely_desktop/widgets/dialogs/products/edit_product_dialog.dart';
-import 'package:invoicely_desktop/widgets/dialogs/products/remove_product_dialog.dart';
-import '../../data/dto/product/product_create_dto.dart';
-import '../../data/dto/product/product_response_dto.dart';
-import '../../providers/product_provider.dart';
+import 'package:invoicely_desktop/data/dto/service/service_create_dto.dart';
+import 'package:invoicely_desktop/widgets/dialogs/services/add_service_dialog.dart';
+import 'package:invoicely_desktop/widgets/dialogs/services/edit_service_dialog.dart';
+import 'package:invoicely_desktop/widgets/dialogs/services/remove_service_dialog.dart';
+import '../../data/dto/service/service_response_dto.dart';
+import '../../data/dto/service/service_update_dto.dart';
+import '../../providers/service_provider.dart';
 import '../../widgets/global_app_bar.dart';
 import 'package:intl/intl.dart';
 
-class ProductScreen extends ConsumerStatefulWidget {
-  const ProductScreen({super.key});
+class ServiceScreen extends ConsumerStatefulWidget {
+  const ServiceScreen({super.key});
 
   @override
-  ConsumerState<ProductScreen> createState() => _ProductScreenState();
+  ConsumerState<ServiceScreen> createState() => _ServiceScreenState();
 }
 
-class _ProductScreenState extends ConsumerState<ProductScreen> {
+class _ServiceScreenState extends ConsumerState<ServiceScreen> {
   final TextEditingController _searchController = TextEditingController();
   int _currentPage = 0;
   final int _rowsPerPage = 10;
@@ -25,10 +25,10 @@ class _ProductScreenState extends ConsumerState<ProductScreen> {
   final currencyFormat = NumberFormat.currency(locale: 'pt_PT', symbol: '€');
   @override
   Widget build(BuildContext context) {
-    final productsAsync = ref.watch(productNotifierProvider);
+    final servicesAsync = ref.watch(serviceNotifierProvider);
 
     return Scaffold(
-      appBar: const GlobalAppBar(title: 'Produtos'),
+      appBar: const GlobalAppBar(title: 'Serviços'),
       drawer: const GlobalDrawer(),
       body: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 80, vertical: 60),
@@ -40,16 +40,16 @@ class _ProductScreenState extends ConsumerState<ProductScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 const Text(
-                  'Produtos',
+                  'Serviços',
                   style: TextStyle(
                       fontSize: 36,
                       fontWeight: FontWeight.bold,
                       color: Colors.white),
                 ),
                 ElevatedButton.icon(
-                  onPressed: () => _showAddProductDialog(),
+                  onPressed: () => _showAddServiceDialog(),
                   icon: const Icon(Icons.add, size: 20),
-                  label: const Text('Adicionar Produto',
+                  label: const Text('Adicionar Serviço',
                       style: TextStyle(fontWeight: FontWeight.w600)),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color.fromARGB(255, 36, 54, 71),
@@ -87,7 +87,7 @@ class _ProductScreenState extends ConsumerState<ProductScreen> {
             const SizedBox(height: 32),
             // Table
             Expanded(
-              child: productsAsync.when(
+              child: servicesAsync.when(
                 data: (products) {
                   final filtered = products
                       .where((c) =>
@@ -113,7 +113,7 @@ class _ProductScreenState extends ConsumerState<ProductScreen> {
                   );
 
                   // sempre 10 linhas
-                  final displayProducts = List.generate(
+                  final displayServices = List.generate(
                       totalRows,
                       (index) => index < pageProducts.length
                           ? pageProducts[index]
@@ -162,8 +162,8 @@ class _ProductScreenState extends ConsumerState<ProductScreen> {
                                     ),
                                   ),
                               ],
-                              rows: displayProducts.map((product) {
-                                if (product == null) {
+                              rows: displayServices.map((service) {
+                                if (service == null) {
                                   return DataRow(
                                     cells: List.generate(
                                       4,
@@ -179,20 +179,20 @@ class _ProductScreenState extends ConsumerState<ProductScreen> {
                                   cells: [
                                     DataCell(Container(
                                       padding: cellPadding,
-                                      child: Text(product.name,
+                                      child: Text(service.name,
                                           style: const TextStyle(
                                               color: Colors.white)),
                                     )),
                                     DataCell(Container(
                                       padding: cellPadding,
-                                      child: Text(product.description,
+                                      child: Text(service.description,
                                           style: const TextStyle(
                                               color: Colors.white70)),
                                     )),
                                     DataCell(Container(
                                       padding: cellPadding,
                                       child: Text(
-                                        currencyFormat.format(product.price),
+                                        currencyFormat.format(service.price),
                                         style: const TextStyle(
                                             color: Colors.white70),
                                       ),
@@ -204,13 +204,13 @@ class _ProductScreenState extends ConsumerState<ProductScreen> {
                                             icon: const Icon(Icons.edit,
                                                 size: 18),
                                             onPressed: () =>
-                                                _editProduct(product),
+                                                _editService(service),
                                             color: Colors.blue.shade400),
                                         IconButton(
                                             icon: const Icon(Icons.delete,
                                                 size: 18),
                                             onPressed: () =>
-                                                _removeProduct(product),
+                                                _removeService(service),
                                             color: Colors.red.shade400),
                                       ],
                                     )),
@@ -250,7 +250,7 @@ class _ProductScreenState extends ConsumerState<ProductScreen> {
                 },
                 loading: () => const Center(child: CircularProgressIndicator()),
                 error: (e, st) =>
-                    Center(child: Text('Erro ao carregar Produtos: $e')),
+                    Center(child: Text('Erro ao carregar Serviços: $e')),
               ),
             )
           ],
@@ -259,50 +259,50 @@ class _ProductScreenState extends ConsumerState<ProductScreen> {
     );
   }
 
-  void _showAddProductDialog() {
+  void _showAddServiceDialog() {
     showDialog(
       context: context,
-      builder: (_) => AddProductDialog(
-        onProductAdded: (newProduct) async {
-          final dto = ProductCreateDTO(
-            name: newProduct.name,
-            description: newProduct.description,
-            price: newProduct.price,
+      builder: (_) => AddServiceDialog(
+        onServiceAdded: (newService) async {
+          final dto = ServiceCreateDTO(
+            name: newService.name,
+            description: newService.description,
+            price: newService.price,
           );
-          await ref.read(productNotifierProvider.notifier).createProduct(dto);
+          await ref.read(serviceNotifierProvider.notifier).createService(dto);
         },
       ),
     );
   }
 
-  void _editProduct(ProductResponseDTO product) {
+  void _editService(ServiceResponseDTO service) {
     showDialog(
       context: context,
-      builder: (_) => EditProductDialog(
-        product: product,
-        onProductUpdated: (editedProduct) async {
-          final dto = ProductUpdateDTO(
-            name: editedProduct.name,
-            description: editedProduct.description,
-            price: editedProduct.price,
+      builder: (_) => EditServiceDialog(
+        service: service,
+        onServiceUpdated: (editedService) async {
+          final dto = ServiceUpdateDTO(
+            name: editedService.name,
+            description: editedService.description,
+            price: editedService.price,
           );
           await ref
-              .read(productNotifierProvider.notifier)
-              .updateProduct(product.id, dto);
+              .read(serviceNotifierProvider.notifier)
+              .updateService(service.id, dto);
         },
       ),
     );
   }
 
-  void _removeProduct(ProductResponseDTO product) async {
+  void _removeService(ServiceResponseDTO service) async {
     await showDialog<bool>(
       context: context,
-      builder: (_) => RemoveProductDialog(
-        product: product,
+      builder: (_) => RemoveServiceDialog(
+        service: service,
         onConfirmed: () async {
           await ref
-              .read(productNotifierProvider.notifier)
-              .deleteProduct(product.id);
+              .read(serviceNotifierProvider.notifier)
+              .deleteService(service.id);
         },
       ),
     );
