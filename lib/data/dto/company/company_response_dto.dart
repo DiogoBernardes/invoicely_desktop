@@ -46,4 +46,19 @@ class CompanyResponseDTO {
       owner: OwnerResponseDTO.fromJson(json['owner']),
     );
   }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'name': name,
+      'nif': nif,
+      'email': email,
+      'phone': phone,
+      'address': address,
+      'logo': logo?.toList(),
+      'signature': signature?.toList(),
+      'stamp': stamp?.toList(),
+      'owner': owner.toJson(),
+    };
+  }
 }
