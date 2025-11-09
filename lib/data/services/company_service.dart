@@ -61,20 +61,31 @@ class CompanyService {
   }
 
   Future<CompanyResponseDTO> updateCompany(
-      String companyId, CompanyUpdateDTO data) async {
+    String companyId,
+    CompanyUpdateDTO data,
+  ) async {
     try {
       final token = await _getToken();
+
       final formData = await data.toFormData();
+
       final response = await _dio.put(
         '/company/update/$companyId',
         data: formData,
-        options: Options(headers: {'Authorization': 'Bearer $token'}),
+        options: Options(
+          headers: {'Authorization': 'Bearer $token'},
+          contentType: 'multipart/form-data',
+        ),
       );
+
       return CompanyResponseDTO.fromJson(response.data);
     } on DioException catch (e) {
-      throw Exception(
-        'Erro ao atualizar empresa: ${e.response?.data ?? e.message}',
-      );
+      final msg = e.response?.data?['message'] ??
+          e.response?.data.toString() ??
+          e.message ??
+          'Erro ao atualizar a empresa.';
+
+      throw Exception(msg);
     }
   }
 }

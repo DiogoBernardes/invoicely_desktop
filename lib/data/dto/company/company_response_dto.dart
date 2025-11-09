@@ -8,9 +8,9 @@ class CompanyResponseDTO {
   final String email;
   final String phone;
   final String address;
-  final Uint8List? logo;
-  final Uint8List? signature;
-  final Uint8List? stamp;
+  final String? logoUrl;
+  final String? signatureUrl;
+  final String? stampUrl;
   final OwnerResponseDTO owner;
 
   CompanyResponseDTO({
@@ -20,9 +20,9 @@ class CompanyResponseDTO {
     required this.email,
     required this.phone,
     required this.address,
-    this.logo,
-    this.signature,
-    this.stamp,
+    this.logoUrl,
+    this.signatureUrl,
+    this.stampUrl,
     required this.owner,
   });
 
@@ -34,15 +34,9 @@ class CompanyResponseDTO {
       email: json['email'],
       phone: json['phone'],
       address: json['address'],
-      logo: json['logo'] != null
-          ? Uint8List.fromList(List<int>.from(json['logo']))
-          : null,
-      signature: json['signature'] != null
-          ? Uint8List.fromList(List<int>.from(json['signature']))
-          : null,
-      stamp: json['stamp'] != null
-          ? Uint8List.fromList(List<int>.from(json['stamp']))
-          : null,
+      logoUrl: json['logoUrl'],
+      signatureUrl: json['signatureUrl'],
+      stampUrl: json['stampUrl'],
       owner: OwnerResponseDTO.fromJson(json['owner']),
     );
   }
@@ -55,9 +49,9 @@ class CompanyResponseDTO {
       'email': email,
       'phone': phone,
       'address': address,
-      'logo': logo?.toList(),
-      'signature': signature?.toList(),
-      'stamp': stamp?.toList(),
+      'logoUrl': logoUrl,
+      'signatureUrl': signatureUrl,
+      'stampUrl': stampUrl,
       'owner': owner.toJson(),
     };
   }

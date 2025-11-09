@@ -1,12 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../data/services/auth_service.dart';
+import '../providers/login_provider.dart';
 import '../providers/menu_provider.dart';
 import '../screens/client/client_screen.dart';
+import '../screens/company/company_screen.dart';
 import '../screens/dashboard/dashboard_screen.dart';
+import '../screens/login/login_screen.dart';
 import '../screens/product/product_screen.dart';
 import '../screens/service/service_screen.dart';
 import '../screens/supplier/supplier_screen.dart';
+import 'dialogs/logoutDialog.dart';
 
 class GlobalAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String title;
@@ -242,11 +247,11 @@ class _SearchField extends StatelessWidget {
 }
 
 // Avatar do utilizador com dropdown
-class _UserMenu extends StatelessWidget {
+class _UserMenu extends ConsumerWidget {
   const _UserMenu({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Row(
       children: [
         // Avatar
@@ -261,22 +266,43 @@ class _UserMenu extends StatelessWidget {
           child: const Icon(Icons.person, color: Colors.blue, size: 20),
         ),
         const SizedBox(width: 4),
-        // Seta dropdown estilizada
+
+        // Dropdown estilizado
         PopupMenuButton<String>(
           icon: const Icon(Icons.keyboard_arrow_down, color: Colors.white70),
           color: const Color.fromARGB(255, 26, 38, 51),
           elevation: 8,
-          offset: const Offset(0, 50), // abre logo abaixo do avatar
+          offset: const Offset(0, 50),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
-          onSelected: (value) {
+          onSelected: (value) async {
             switch (value) {
               case 'Dados Empresa':
-                // Navegar para página de dados da empresa
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const CompanyScreen()),
+                );
                 break;
+
               case 'Logout':
-                // Implementar logout
+                showDialog(
+                  context: context,
+                  builder: (_) => LogoutDialog(
+                    onConfirmed: () async {
+                      final authService = AuthService();
+                      await authService.logout();
+                      await ref.read(loginProvider.notifier).logout();
+
+                      if (context.mounted) {
+                        Navigator.of(context).pushAndRemoveUntil(
+                          MaterialPageRoute(
+                              builder: (_) => const LoginScreen()),
+                          (route) => false,
+                        );
+                      }
+                    },
+                  ),
+                );
                 break;
             }
           },
