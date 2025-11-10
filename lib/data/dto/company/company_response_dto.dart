@@ -1,4 +1,3 @@
-import 'dart:typed_data';
 import '../user/owner_response_dto.dart';
 
 class CompanyResponseDTO {

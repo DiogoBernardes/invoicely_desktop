@@ -27,12 +27,6 @@ class LoginScreen extends ConsumerWidget {
           );
         }
       }
-
-      if (next.isError && next.errorMessage != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(next.errorMessage!)),
-        );
-      }
     });
 
     return Scaffold(

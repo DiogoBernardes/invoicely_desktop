@@ -8,23 +8,47 @@ class LoginNotifier extends StateNotifier<LoginState> {
 
   LoginNotifier(this._authService) : super(const LoginState());
 
-  Future<void> login(String email, String password) async {
-    state = state.copyWith(status: LoginStatus.loading, errorMessage: null);
+  Future<void> login(String email, String password,
+      {bool rememberMe = false}) async {
+    if (email.isEmpty || password.isEmpty) {
+      state = state.copyWith(
+        status: LoginStatus.error,
+        errorMessage: 'Por favor insira o email e a password.',
+      );
+      return;
+    }
 
     try {
-      await _authService.login(email, password);
+      state = state.copyWith(status: LoginStatus.loading);
 
-      final userData = await _authService.getUserData();
-      final hasCompany = userData['hasCompany'] as bool? ?? false;
+      final data = await _authService.login(email, password);
+      final hasCompany = data['user']?['company'] != null;
+
+      final prefs = await SharedPreferences.getInstance();
+
+      // ✅ Salva ou apaga conforme o estado do rememberMe
+      if (rememberMe) {
+        await prefs.setBool('remember_me', true);
+        await prefs.setString('saved_email', email);
+        await prefs.setString('saved_password', password);
+      } else {
+        await prefs.setBool('remember_me', false);
+        await prefs.remove('saved_email');
+        await prefs.remove('saved_password');
+      }
 
       state = state.copyWith(
         status: LoginStatus.success,
         hasCompany: hasCompany,
       );
     } catch (e) {
+      String message = e.toString();
+      if (message.startsWith('Exception: ')) {
+        message = message.substring(11);
+      }
       state = state.copyWith(
         status: LoginStatus.error,
-        errorMessage: e.toString(),
+        errorMessage: message,
       );
     }
   }

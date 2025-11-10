@@ -30,8 +30,14 @@ class AuthService {
         throw Exception('Falha no login. Verifique as suas credenciais.');
       }
     } on DioException catch (e) {
-      throw Exception(
-          e.response?.data['message'] ?? 'Erro ao conectar com o servidor.');
+      if (e.response != null && e.response?.data != null) {
+        final message = e.response?.data['message'] ??
+            e.response?.data['error'] ??
+            'Erro desconhecido.';
+        throw Exception(message);
+      } else {
+        throw Exception('Não foi possível conectar ao servidor.');
+      }
     }
   }
 
