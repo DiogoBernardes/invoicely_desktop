@@ -61,7 +61,7 @@ class CompanyNotifier extends StateNotifier<AsyncValue<CompanyResponseDTO?>> {
       );
 
       final updated =
-          await _service.updateCompany(currentCompany.id!, updateDto);
+          await _service.updateCompany(currentCompany.id, updateDto);
 
       state = AsyncValue.data(updated);
     } catch (e, st) {

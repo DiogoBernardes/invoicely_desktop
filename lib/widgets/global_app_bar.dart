@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../data/services/auth_service.dart';
 import '../providers/login_provider.dart';
 import '../providers/menu_provider.dart';
+import '../screens/budget/budget_screen.dart';
 import '../screens/client/client_screen.dart';
 import '../screens/company/company_screen.dart';
 import '../screens/dashboard/dashboard_screen.dart';
@@ -96,6 +97,7 @@ class GlobalDrawer extends StatelessWidget {
       'Fornecedores': const SupplierScreen(),
       'Produtos': const ProductScreen(),
       'Serviços': const ServiceScreen(),
+      'Orçamento': const BudgetScreen(),
     };
 
     return Drawer(
@@ -140,6 +142,7 @@ class _NavMenu extends ConsumerWidget {
       'Fornecedores': const SupplierScreen(),
       'Produtos': const ProductScreen(),
       'Serviços': const ServiceScreen(),
+      'Orçamento': const BudgetScreen(),
     };
 
     return Row(

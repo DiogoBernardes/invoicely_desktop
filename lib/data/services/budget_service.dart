@@ -1,0 +1,116 @@
+// budget_service.dart
+import 'package:dio/dio.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../../../config/dio_config.dart';
+import '../dto/budget/budget_create_dto.dart';
+import '../dto/budget/budget_response_dto.dart';
+import '../dto/budget/budget_update_dto.dart';
+
+class BudgetService {
+  final Dio _dio = DioClient().dio;
+
+  Future<String?> _getToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('jwt_access_token');
+  }
+
+  Future<List<BudgetResponseDTO>> getAllBudgets() async {
+    try {
+      final token = await _getToken();
+      final response = await _dio.get(
+        '/budgets',
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+
+      return (response.data as List)
+          .map((json) => BudgetResponseDTO.fromJson(json))
+          .toList();
+    } on DioException catch (e) {
+      throw Exception(
+          'Erro ao obter budgets: ${e.response?.data ?? e.message}');
+    }
+  }
+
+  Future<BudgetResponseDTO> getBudget(String id) async {
+    try {
+      final token = await _getToken();
+      final response = await _dio.get(
+        '/budgets/$id',
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+
+      return BudgetResponseDTO.fromJson(response.data);
+    } on DioException catch (e) {
+      throw Exception('Erro ao obter budget: ${e.response?.data ?? e.message}');
+    }
+  }
+
+  Future<BudgetResponseDTO> createBudget(BudgetCreateDTO dto) async {
+    try {
+      final token = await _getToken();
+      final response = await _dio.post(
+        '/budgets/create',
+        data: dto.toJson(),
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+      return BudgetResponseDTO.fromJson(response.data);
+    } on DioException catch (e) {
+      throw Exception('Erro ao criar budget: ${e.response?.data ?? e.message}');
+    }
+  }
+
+  Future<BudgetResponseDTO> updateBudget(String id, BudgetUpdateDTO dto) async {
+    try {
+      final token = await _getToken();
+      final response = await _dio.put(
+        '/budgets/update/$id',
+        data: dto.toJson(),
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+      return BudgetResponseDTO.fromJson(response.data);
+    } on DioException catch (e) {
+      throw Exception(
+          'Erro ao atualizar budget: ${e.response?.data ?? e.message}');
+    }
+  }
+
+  Future<void> deleteBudget(String id) async {
+    try {
+      final token = await _getToken();
+      await _dio.delete(
+        '/budgets/delete/$id',
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+    } on DioException catch (e) {
+      throw Exception(
+          'Erro ao remover budget: ${e.response?.data ?? e.message}');
+    }
+  }
+
+  Future<void> sendBudgetToClient(String id) async {
+    try {
+      final token = await _getToken();
+      await _dio.post(
+        '/budgets/$id/send-to-client',
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+    } on DioException catch (e) {
+      throw Exception(
+          'Erro ao enviar budget ao cliente: ${e.response?.data ?? e.message}');
+    }
+  }
+
+  Future<void> sendBudgetByEmail(String id, String email) async {
+    try {
+      final token = await _getToken();
+      await _dio.post(
+        '/budgets/$id/send-pdf-by-email',
+        queryParameters: {'accountantEmail': email},
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+    } on DioException catch (e) {
+      throw Exception(
+          'Erro ao enviar budget por email: ${e.response?.data ?? e.message}');
+    }
+  }
+}
