@@ -18,10 +18,38 @@ class BudgetScreen extends ConsumerStatefulWidget {
 
 class _BudgetScreenState extends ConsumerState<BudgetScreen> {
   final TextEditingController _searchController = TextEditingController();
+  final TextEditingController _startDateController = TextEditingController();
+  final TextEditingController _endDateController = TextEditingController();
+  late final TextEditingController _sortController;
+
   int _currentPage = 0;
   final int _rowsPerPage = 10;
   String _searchQuery = '';
+
+  // Ordenação
+  String _sortField = 'date';
+  bool _sortAsc = true;
+
+  DateTime? _startDate;
+  DateTime? _endDate;
+
   final currencyFormat = NumberFormat.currency(locale: 'pt_PT', symbol: '€');
+
+  @override
+  void initState() {
+    super.initState();
+    _sortController = TextEditingController(
+        text: '$_sortField-${_sortAsc ? 'Ascendente' : 'Descendente'}');
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    _startDateController.dispose();
+    _endDateController.dispose();
+    _sortController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -31,11 +59,11 @@ class _BudgetScreenState extends ConsumerState<BudgetScreen> {
       appBar: const GlobalAppBar(title: 'Orçamentos'),
       drawer: const GlobalDrawer(),
       body: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 80, vertical: 60),
+        padding: const EdgeInsets.symmetric(horizontal: 80, vertical: 40),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header
+            // Header + Add Button
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -47,7 +75,7 @@ class _BudgetScreenState extends ConsumerState<BudgetScreen> {
                       color: Colors.white),
                 ),
                 ElevatedButton.icon(
-                  onPressed: () => _showAddBudgetDialog(),
+                  onPressed: _showAddBudgetDialog,
                   icon: const Icon(Icons.add, size: 20),
                   label: const Text('Adicionar Orçamento',
                       style: TextStyle(fontWeight: FontWeight.w600)),
@@ -63,44 +91,193 @@ class _BudgetScreenState extends ConsumerState<BudgetScreen> {
                 )
               ],
             ),
-            const SizedBox(height: 32),
-            // Search bar
-            TextField(
-              controller: _searchController,
-              decoration: InputDecoration(
-                hintText: 'Pesquisar por entidade, estado ou total...',
-                prefixIcon: const Icon(Icons.search),
-                border:
-                    OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                filled: true,
-                fillColor: const Color.fromARGB(221, 36, 54, 71),
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              ),
-              onChanged: (value) {
-                setState(() {
-                  _searchQuery = value;
-                  _currentPage = 0;
-                });
-              },
+            const SizedBox(height: 16),
+
+            Row(
+              children: [
+                // Pesquisa
+                Expanded(
+                  child: TextField(
+                    controller: _searchController,
+                    decoration: InputDecoration(
+                      hintText: 'Pesquisar por entidade, estado ou total...',
+                      prefixIcon: const Icon(Icons.search),
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                      filled: true,
+                      fillColor: const Color.fromARGB(221, 36, 54, 71),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 12),
+                    ),
+                    onChanged: (value) {
+                      setState(() {
+                        _searchQuery = value;
+                        _currentPage = 0;
+                      });
+                    },
+                  ),
+                ),
+                const SizedBox(width: 200),
+
+                // Data inicial
+                SizedBox(
+                  width: 150,
+                  child: TextField(
+                    controller: _startDateController,
+                    readOnly: true,
+                    decoration: InputDecoration(
+                      hintText: 'Data inicial',
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8)),
+                      filled: true,
+                      fillColor: const Color.fromARGB(221, 36, 54, 71),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 8),
+                    ),
+                    style: const TextStyle(fontSize: 14),
+                    onTap: () async {
+                      final date = await showDatePicker(
+                        context: context,
+                        initialDate: _startDate ?? DateTime.now(),
+                        firstDate: DateTime(2000),
+                        lastDate: DateTime(2100),
+                      );
+                      if (date != null) {
+                        setState(() {
+                          _startDate = date;
+                          _startDateController.text =
+                              DateFormat('dd/MM/yyyy').format(date);
+                          _currentPage = 0;
+                        });
+                      }
+                    },
+                  ),
+                ),
+                const SizedBox(width: 8),
+
+                // Data final
+                SizedBox(
+                  width: 150,
+                  child: TextField(
+                    controller: _endDateController,
+                    readOnly: true,
+                    decoration: InputDecoration(
+                      hintText: 'Data final',
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8)),
+                      filled: true,
+                      fillColor: const Color.fromARGB(221, 36, 54, 71),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 8),
+                    ),
+                    style: const TextStyle(fontSize: 14),
+                    onTap: () async {
+                      final date = await showDatePicker(
+                        context: context,
+                        initialDate: _endDate ?? DateTime.now(),
+                        firstDate: DateTime(2000),
+                        lastDate: DateTime(2100),
+                      );
+                      if (date != null) {
+                        setState(() {
+                          _endDate = date;
+                          _endDateController.text =
+                              DateFormat('dd/MM/yyyy').format(date);
+                          _currentPage = 0;
+                        });
+                      }
+                    },
+                  ),
+                ),
+                const SizedBox(width: 12),
+
+                // Dropdown de ordenação
+                SizedBox(
+                  width: 200,
+                  child: DropdownMenu<String>(
+                    controller: _sortController,
+                    initialSelection:
+                        '$_sortField-${_sortAsc ? 'Ascendente' : 'Descendente'}',
+                    enableFilter: false,
+                    label: const Text('Ordenar'),
+                    inputDecorationTheme: InputDecorationTheme(
+                      filled: true,
+                      fillColor: const Color.fromARGB(221, 36, 54, 71),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide.none,
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 8),
+                    ),
+                    dropdownMenuEntries: const [
+                      DropdownMenuEntry(
+                          value: 'date-Ascendente', label: 'Data Ascendente ↑'),
+                      DropdownMenuEntry(
+                          value: 'date-Descendente',
+                          label: 'Data Descendente ↓'),
+                      DropdownMenuEntry(
+                          value: 'total-Ascendente',
+                          label: 'Total Ascendente ↑'),
+                      DropdownMenuEntry(
+                          value: 'total-Descendente',
+                          label: 'Total Descendente ↓'),
+                    ],
+                    onSelected: (value) {
+                      if (value == null) return;
+                      setState(() {
+                        final parts = value.split('-');
+                        _sortField = parts[0];
+                        _sortAsc = parts[1] == 'Ascendente';
+                        _sortController.text = value;
+                        _currentPage = 0;
+                      });
+                    },
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 32),
-            // Table
+            const SizedBox(height: 24),
+
+            // TABLE + PAGINATION
             Expanded(
               child: budgetsAsync.when(
+                loading: () => const Center(child: CircularProgressIndicator()),
+                error: (e, st) =>
+                    Center(child: Text('Erro ao carregar Orçamentos: $e')),
                 data: (budgets) {
-                  final filtered = budgets
-                      .where((b) =>
-                          b.entityName
-                              .toLowerCase()
-                              .contains(_searchQuery.toLowerCase()) ||
-                          b.state
-                              .toLowerCase()
-                              .contains(_searchQuery.toLowerCase()) ||
-                          b.total.toString().contains(_searchQuery))
-                      .toList();
+                  // FILTRO pesquisa + range datas
+                  final filtered = budgets.where((b) {
+                    final matchesSearch = b.entityName
+                            .toLowerCase()
+                            .contains(_searchQuery.toLowerCase()) ||
+                        b.state
+                            .toLowerCase()
+                            .contains(_searchQuery.toLowerCase()) ||
+                        b.total.toString().contains(_searchQuery);
 
-                  final totalRows = _rowsPerPage;
+                    final inDateRange = (_startDate == null ||
+                            b.date.isAfter(_startDate!
+                                .subtract(const Duration(days: 1)))) &&
+                        (_endDate == null ||
+                            b.date.isBefore(
+                                _endDate!.add(const Duration(days: 1))));
+
+                    return matchesSearch && inDateRange;
+                  }).toList();
+
+                  // ORDENAR
+                  filtered.sort((a, b) {
+                    int cmp = 0;
+                    if (_sortField == 'date') {
+                      cmp = a.date.compareTo(b.date);
+                    } else if (_sortField == 'total') {
+                      cmp = a.total.compareTo(b.total);
+                    }
+                    return _sortAsc ? cmp : -cmp;
+                  });
+
+                  // PAGINAÇÃO
                   final totalPages = (filtered.length / _rowsPerPage).ceil();
                   final startIndex = _currentPage * _rowsPerPage;
                   final endIndex = startIndex + _rowsPerPage;
@@ -108,12 +285,11 @@ class _BudgetScreenState extends ConsumerState<BudgetScreen> {
                     startIndex,
                     endIndex > filtered.length ? filtered.length : endIndex,
                   );
-
                   final displayBudgets = List.generate(
-                      totalRows,
-                      (index) => index < pageBudgets.length
-                          ? pageBudgets[index]
-                          : null);
+                    _rowsPerPage,
+                    (index) =>
+                        index < pageBudgets.length ? pageBudgets[index] : null,
+                  );
 
                   const cellPadding =
                       EdgeInsets.symmetric(horizontal: 16, vertical: 12);
@@ -237,11 +413,12 @@ class _BudgetScreenState extends ConsumerState<BudgetScreen> {
                                             color: Colors.blue.shade400,
                                           ),
                                         IconButton(
-                                            icon: const Icon(Icons.delete,
-                                                size: 18),
-                                            onPressed: () =>
-                                                _removeBudget(budget),
-                                            color: Colors.red.shade400),
+                                          icon: const Icon(Icons.delete,
+                                              size: 18),
+                                          onPressed: () =>
+                                              _removeBudget(budget),
+                                          color: Colors.red.shade400,
+                                        ),
                                       ],
                                     )),
                                   ],
@@ -252,12 +429,15 @@ class _BudgetScreenState extends ConsumerState<BudgetScreen> {
                         ),
                       ),
                       const SizedBox(height: 10),
+
+                      // Pagination
                       Row(
                         mainAxisAlignment: MainAxisAlignment.end,
                         children: [
                           Text(
-                              'Página ${_currentPage + 1} de ${totalPages == 0 ? 1 : totalPages}',
-                              style: const TextStyle(color: Colors.white70)),
+                            'Página ${_currentPage + 1} de ${totalPages == 0 ? 1 : totalPages}',
+                            style: const TextStyle(color: Colors.white70),
+                          ),
                           const SizedBox(width: 16),
                           IconButton(
                             onPressed: _currentPage > 0
@@ -274,15 +454,12 @@ class _BudgetScreenState extends ConsumerState<BudgetScreen> {
                             color: Colors.white70,
                           ),
                         ],
-                      )
+                      ),
                     ],
                   );
                 },
-                loading: () => const Center(child: CircularProgressIndicator()),
-                error: (e, st) =>
-                    Center(child: Text('Erro ao carregar Orçamentos: $e')),
               ),
-            )
+            ),
           ],
         ),
       ),
@@ -292,6 +469,7 @@ class _BudgetScreenState extends ConsumerState<BudgetScreen> {
   void _showAddBudgetDialog() {
     showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (_) => AddBudgetDialog(
         onBudgetAdded: (newBudget) async {
           await ref
@@ -305,6 +483,7 @@ class _BudgetScreenState extends ConsumerState<BudgetScreen> {
   void _editBudget(BudgetResponseDTO budget) {
     showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (_) => EditBudgetDialog(
         budget: budget,
         onBudgetUpdated: (updatedBudget) async {
@@ -319,6 +498,7 @@ class _BudgetScreenState extends ConsumerState<BudgetScreen> {
   void _removeBudget(BudgetResponseDTO budget) async {
     await showDialog<bool>(
       context: context,
+      barrierDismissible: false,
       builder: (_) => RemoveBudgetDialog(
         budget: budget,
         onConfirmed: () async {

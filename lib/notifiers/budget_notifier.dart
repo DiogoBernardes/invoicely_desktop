@@ -23,16 +23,19 @@ class BudgetNotifier
   }
 
   Future<void> createBudget(BudgetCreateDTO dto) async {
+    state = const AsyncLoading();
     await _repository.createBudget(dto);
     await loadBudgets();
   }
 
   Future<void> updateBudget(String id, BudgetUpdateDTO dto) async {
+    state = const AsyncLoading();
     await _repository.updateBudget(id, dto);
     await loadBudgets();
   }
 
   Future<void> deleteBudget(String id) async {
+    state = const AsyncLoading();
     await _repository.deleteBudget(id);
     await loadBudgets();
   }
