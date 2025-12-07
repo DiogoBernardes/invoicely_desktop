@@ -32,7 +32,6 @@ class GlobalAppBar extends StatelessWidget implements PreferredSizeWidget {
       title: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          // Logo + Texto "Invoicely"
           Row(
             children: [
               Padding(
@@ -59,8 +58,6 @@ class GlobalAppBar extends StatelessWidget implements PreferredSizeWidget {
             ],
           ),
           const SizedBox(width: 32),
-
-          // Menu desktop ou botão drawer mobile
           if (!isMobile)
             const Expanded(child: _NavMenu())
           else
@@ -73,8 +70,6 @@ class GlobalAppBar extends StatelessWidget implements PreferredSizeWidget {
         ],
       ),
       actions: const [
-        _SearchField(),
-        SizedBox(width: 16),
         _UserMenu(),
         SizedBox(width: 16),
       ],
@@ -85,7 +80,6 @@ class GlobalAppBar extends StatelessWidget implements PreferredSizeWidget {
   Size get preferredSize => const Size.fromHeight(64);
 }
 
-// Drawer mobile
 class GlobalDrawer extends StatelessWidget {
   const GlobalDrawer({super.key});
 
@@ -115,10 +109,8 @@ class GlobalDrawer extends StatelessWidget {
             (entry) => ListTile(
               title: Text(entry.key),
               onTap: () {
-                Navigator.pop(context); // fecha o Drawer
-                Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => entry.value),
-                );
+                Navigator.pop(context);
+                _navigateWithTransition(context, entry.value);
               },
             ),
           ),
@@ -128,7 +120,6 @@ class GlobalDrawer extends StatelessWidget {
   }
 }
 
-// Menu de navegação desktop
 class _NavMenu extends ConsumerWidget {
   const _NavMenu({super.key});
 
@@ -156,14 +147,10 @@ class _NavMenu extends ConsumerWidget {
             highlightColor: Colors.transparent,
             hoverColor: Colors.transparent,
             onTap: () {
-              // Atualiza a seleção
               ref.read(selectedMenuProvider.notifier).state = item;
 
-              // Navega só se não for a página atual
               if (!isSelected) {
-                Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => routes[item]!),
-                );
+                _navigateWithTransition(context, routes[item]!);
               }
             },
             child: Column(
@@ -196,60 +183,6 @@ class _NavMenu extends ConsumerWidget {
   }
 }
 
-// Campo de pesquisa
-class _SearchField extends StatelessWidget {
-  const _SearchField({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    const backgroundColor = Color(0xFF1A2633);
-
-    return Container(
-      width: 200,
-      height: 36,
-      decoration: BoxDecoration(
-        color: backgroundColor,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.blueGrey, width: 1),
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 8),
-      alignment: Alignment.center,
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          const Icon(Icons.search, color: Colors.white70, size: 18),
-          const SizedBox(width: 6),
-          Expanded(
-            child: Theme(
-              data: Theme.of(context).copyWith(
-                inputDecorationTheme: const InputDecorationTheme(
-                  border: InputBorder.none,
-                  enabledBorder: InputBorder.none,
-                  focusedBorder: InputBorder.none,
-                  errorBorder: InputBorder.none,
-                  focusedErrorBorder: InputBorder.none,
-                  filled: false,
-                ),
-              ),
-              child: const TextField(
-                textAlignVertical: TextAlignVertical.center,
-                style: TextStyle(color: Colors.white70, fontSize: 14),
-                cursorColor: Colors.white70,
-                decoration: InputDecoration(
-                  isDense: true,
-                  hintText: 'Search',
-                  hintStyle: TextStyle(color: Colors.white38),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// Avatar do utilizador com dropdown
 class _UserMenu extends ConsumerWidget {
   const _UserMenu({super.key});
 
@@ -257,7 +190,6 @@ class _UserMenu extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return Row(
       children: [
-        // Avatar
         Container(
           width: 36,
           height: 36,
@@ -269,8 +201,6 @@ class _UserMenu extends ConsumerWidget {
           child: const Icon(Icons.person, color: Colors.blue, size: 20),
         ),
         const SizedBox(width: 4),
-
-        // Dropdown estilizado
         PopupMenuButton<String>(
           icon: const Icon(Icons.keyboard_arrow_down, color: Colors.white70),
           color: const Color.fromARGB(255, 26, 38, 51),
@@ -282,9 +212,7 @@ class _UserMenu extends ConsumerWidget {
           onSelected: (value) async {
             switch (value) {
               case 'Dados Empresa':
-                Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const CompanyScreen()),
-                );
+                _navigateWithTransition(context, const CompanyScreen());
                 break;
 
               case 'Logout':
@@ -298,8 +226,7 @@ class _UserMenu extends ConsumerWidget {
 
                       if (context.mounted) {
                         Navigator.of(context).pushAndRemoveUntil(
-                          MaterialPageRoute(
-                              builder: (_) => const LoginScreen()),
+                          _createFadeRoute(const LoginScreen()),
                           (route) => false,
                         );
                       }
@@ -335,4 +262,22 @@ class _UserMenu extends ConsumerWidget {
       ],
     );
   }
+}
+
+void _navigateWithTransition(BuildContext context, Widget screen) {
+  Navigator.of(context).push(_createFadeRoute(screen));
+}
+
+Route _createFadeRoute(Widget screen) {
+  return PageRouteBuilder(
+    pageBuilder: (context, animation, secondaryAnimation) => screen,
+    transitionDuration: const Duration(milliseconds: 250),
+    reverseTransitionDuration: const Duration(milliseconds: 200),
+    transitionsBuilder: (context, animation, secondaryAnimation, child) {
+      return FadeTransition(
+        opacity: CurveTween(curve: Curves.easeInOut).animate(animation),
+        child: child,
+      );
+    },
+  );
 }
