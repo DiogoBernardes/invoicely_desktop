@@ -13,6 +13,21 @@ class ClientService {
     return prefs.getString('jwt_access_token');
   }
 
+  Future<ClientResponseDTO> getClient(String id) async {
+    try {
+      final token = await _getToken();
+      final response = await _dio.get(
+        '/entities/$id',
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+
+      return ClientResponseDTO.fromJson(response.data);
+    } on DioException catch (e) {
+      throw Exception(
+          'Erro ao obter cliente: ${e.response?.data ?? e.message}');
+    }
+  }
+
   Future<List<ClientResponseDTO>> getAllClients() async {
     try {
       final token = await _getToken();

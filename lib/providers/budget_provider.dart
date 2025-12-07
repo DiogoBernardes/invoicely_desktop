@@ -6,9 +6,12 @@ import '../data/repositories/budget_repository.dart';
 import '../data/services/budget_service.dart';
 import '../notifiers/budget_notifier.dart';
 
+final budgetServiceProvider = Provider((ref) => BudgetService());
+
+final budgetRepositoryProvider =
+    Provider((ref) => BudgetRepository(ref.watch(budgetServiceProvider)));
+
 final budgetNotifierProvider =
     StateNotifierProvider<BudgetNotifier, AsyncValue<List<BudgetResponseDTO>>>(
-        (ref) {
-  final repository = BudgetRepository(BudgetService());
-  return BudgetNotifier(repository);
-});
+  (ref) => BudgetNotifier(ref.watch(budgetRepositoryProvider)),
+);

@@ -13,6 +13,15 @@ class BudgetNotifier
     loadBudgets();
   }
 
+  Future<void> loadBudget(String id) async {
+    try {
+      final budget = await _repository.fetchBudget(id);
+      state = AsyncValue.data([budget]);
+    } catch (e, st) {
+      state = AsyncValue.error(e, st);
+    }
+  }
+
   Future<void> loadBudgets() async {
     try {
       final budgets = await _repository.fetchBudgets();
@@ -46,5 +55,9 @@ class BudgetNotifier
 
   Future<void> sendByEmail(String id, String email) async {
     await _repository.sendBudgetByEmail(id, email);
+  }
+
+  Future<void> downloadPdf(String id) async {
+    await _repository.downloadAndOpenPdf(id);
   }
 }

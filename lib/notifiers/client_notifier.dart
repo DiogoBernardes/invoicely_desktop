@@ -12,6 +12,10 @@ class ClientNotifier
     loadClients();
   }
 
+  Future<ClientResponseDTO> loadClient(String id) async {
+    return await _repository.fetchClient(id);
+  }
+
   Future<void> loadClients() async {
     try {
       final clients = await _repository.fetchClients();

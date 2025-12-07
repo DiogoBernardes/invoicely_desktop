@@ -26,7 +26,6 @@ class LoginNotifier extends StateNotifier<LoginState> {
 
       final prefs = await SharedPreferences.getInstance();
 
-      // ✅ Salva ou apaga conforme o estado do rememberMe
       if (rememberMe) {
         await prefs.setBool('remember_me', true);
         await prefs.setString('saved_email', email);

@@ -12,3 +12,9 @@ final clientNotifierProvider =
     StateNotifierProvider<ClientNotifier, AsyncValue<List<ClientResponseDTO>>>(
   (ref) => ClientNotifier(ref.watch(clientRepositoryProvider)),
 );
+
+final clientByIdProvider =
+    FutureProvider.family<ClientResponseDTO, String>((ref, clientId) async {
+  final notifier = ref.read(clientNotifierProvider.notifier);
+  return notifier.loadClient(clientId);
+});

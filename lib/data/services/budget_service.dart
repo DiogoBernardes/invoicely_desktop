@@ -1,5 +1,8 @@
 // budget_service.dart
+import 'dart:io';
 import 'package:dio/dio.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../config/dio_config.dart';
 import '../dto/budget/budget_create_dto.dart';
@@ -111,6 +114,44 @@ class BudgetService {
     } on DioException catch (e) {
       throw Exception(
           'Erro ao enviar budget por email: ${e.response?.data ?? e.message}');
+    }
+  }
+
+  Future<void> downloadBudgetPdf(String budgetId) async {
+    try {
+      final token = await _getToken();
+
+      final response = await _dio.get(
+        '/budgets/$budgetId/download-pdf',
+        options: Options(
+          headers: {'Authorization': 'Bearer $token'},
+          responseType: ResponseType.bytes,
+        ),
+      );
+
+      String filename = "budget.pdf";
+      final contentDisposition = response.headers['content-disposition']?.first;
+      if (contentDisposition != null) {
+        final regex = RegExp(r'filename="(.+)"');
+        final match = regex.firstMatch(contentDisposition);
+        if (match != null && match.groupCount >= 1) {
+          filename = match.group(1)!;
+        }
+      }
+
+      final fileBytes = response.data as Uint8List;
+
+      final result = await FilePicker.platform.saveFile(
+        dialogTitle: 'Salvar PDF',
+        fileName: filename,
+      );
+      if (result == null) return;
+      final file = File(result);
+      await file.writeAsBytes(fileBytes);
+    } on DioException catch (e) {
+      throw Exception("Erro ao baixar PDF: ${e.response?.data ?? e.message}");
+    } catch (e) {
+      throw Exception("Erro inesperado ao baixar PDF: $e");
     }
   }
 }

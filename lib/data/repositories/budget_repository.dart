@@ -18,4 +18,5 @@ class BudgetRepository {
   Future<void> sendBudgetToClient(String id) => _service.sendBudgetToClient(id);
   Future<void> sendBudgetByEmail(String id, String email) =>
       _service.sendBudgetByEmail(id, email);
+  Future<void> downloadAndOpenPdf(String id) => _service.downloadBudgetPdf(id);
 }

@@ -8,6 +8,7 @@ class ClientRepository {
 
   ClientRepository(this._service);
 
+  Future<ClientResponseDTO> fetchClient(String id) => _service.getClient(id);
   Future<List<ClientResponseDTO>> fetchClients() => _service.getAllClients();
   Future<ClientResponseDTO> createClient(ClientCreateDTO dto) =>
       _service.createClient(dto);

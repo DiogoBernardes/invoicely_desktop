@@ -40,7 +40,7 @@ class RemoveBudgetDialog extends StatelessWidget {
           child: const Text('Remover'),
         ),
       ],
-      maxWidthFactor: 0.2,
+      maxWidthFactor: 0.3,
     );
   }
 }
