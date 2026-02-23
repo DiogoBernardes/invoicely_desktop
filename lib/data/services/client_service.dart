@@ -1,8 +1,10 @@
 import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
 import '../../../config/dio_config.dart';
-import '../dto/client/client_response_dto.dart';
+import '../../core/errors/error_message_utils.dart';
 import '../dto/client/client_create_dto.dart';
+import '../dto/client/client_response_dto.dart';
 import '../dto/client/client_update_dto.dart';
 
 class ClientService {
@@ -24,7 +26,11 @@ class ClientService {
       return ClientResponseDTO.fromJson(response.data);
     } on DioException catch (e) {
       throw Exception(
-          'Erro ao obter cliente: ${e.response?.data ?? e.message}');
+        ErrorMessageUtils.fromDio(
+          e,
+          fallback: 'Erro ao obter cliente.',
+        ),
+      );
     }
   }
 
@@ -42,7 +48,10 @@ class ClientService {
           .toList();
     } on DioException catch (e) {
       throw Exception(
-        'Erro ao obter clientes: ${e.response?.data ?? e.message}',
+        ErrorMessageUtils.fromDio(
+          e,
+          fallback: 'Erro ao obter clientes.',
+        ),
       );
     }
   }
@@ -58,7 +67,10 @@ class ClientService {
       return ClientResponseDTO.fromJson(response.data);
     } on DioException catch (e) {
       throw Exception(
-        'Erro ao criar cliente: ${e.response?.data ?? e.message}',
+        ErrorMessageUtils.fromDio(
+          e,
+          fallback: 'Erro ao criar cliente.',
+        ),
       );
     }
   }
@@ -74,7 +86,10 @@ class ClientService {
       return ClientResponseDTO.fromJson(response.data);
     } on DioException catch (e) {
       throw Exception(
-        'Erro ao atualizar cliente: ${e.response?.data ?? e.message}',
+        ErrorMessageUtils.fromDio(
+          e,
+          fallback: 'Erro ao atualizar cliente.',
+        ),
       );
     }
   }
@@ -88,7 +103,10 @@ class ClientService {
       );
     } on DioException catch (e) {
       throw Exception(
-        'Erro ao remover cliente: ${e.response?.data ?? e.message}',
+        ErrorMessageUtils.fromDio(
+          e,
+          fallback: 'Erro ao remover cliente.',
+        ),
       );
     }
   }

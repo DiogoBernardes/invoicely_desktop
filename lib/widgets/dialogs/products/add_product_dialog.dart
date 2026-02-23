@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:invoicely_desktop/data/dto/product/product_response_dto.dart';
+
+import '../../../core/errors/error_message_utils.dart';
 import '../custom_dialog.dart';
 
 class AddProductDialog extends StatefulWidget {
   final ProductResponseDTO? product;
-  final void Function(ProductResponseDTO) onProductAdded;
+  final Future<void> Function(ProductResponseDTO) onProductAdded;
 
   const AddProductDialog({
     super.key,
@@ -20,6 +22,12 @@ class _AddProductDialogState extends State<AddProductDialog> {
   late TextEditingController _nameController;
   late TextEditingController _descriptionController;
   late TextEditingController _priceController;
+  late TextEditingController _stockController;
+  late TextEditingController _minimumStockController;
+
+  bool _isSaving = false;
+  String? _feedbackMessage;
+  bool _feedbackError = false;
 
   @override
   void initState() {
@@ -29,6 +37,12 @@ class _AddProductDialogState extends State<AddProductDialog> {
         TextEditingController(text: widget.product?.description ?? '');
     _priceController =
         TextEditingController(text: widget.product?.price.toString() ?? '');
+    _stockController = TextEditingController(
+      text: (widget.product?.stockQuantity ?? 0).toString(),
+    );
+    _minimumStockController = TextEditingController(
+      text: (widget.product?.minimumStock ?? 0).toString(),
+    );
   }
 
   @override
@@ -38,47 +52,105 @@ class _AddProductDialogState extends State<AddProductDialog> {
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          if (_feedbackMessage != null && _feedbackMessage!.isNotEmpty)
+            _feedbackBox(),
           _buildTextField(_nameController, 'Nome'),
           const SizedBox(height: 12),
-          _buildTextField(_descriptionController, 'Descrição'),
+          _buildTextField(_descriptionController, 'Descricao'),
           const SizedBox(height: 12),
-          _buildTextField(_priceController, 'Preço'),
+          _buildTextField(_priceController, 'Preco'),
+          const SizedBox(height: 12),
+          _buildTextField(_stockController, 'Stock Atual'),
+          const SizedBox(height: 12),
+          _buildTextField(_minimumStockController, 'Stock Minimo'),
         ],
       ),
       actions: [
         TextButton(
-          onPressed: () => Navigator.pop(context),
+          onPressed: _isSaving ? null : () => Navigator.pop(context),
           child:
               const Text('Cancelar', style: TextStyle(color: Colors.white70)),
         ),
         ElevatedButton(
-          onPressed: () {
-            final newProduct = ProductResponseDTO(
-              id: widget.product?.id ?? '',
-              name: _nameController.text,
-              description: _descriptionController.text,
-              price:
-                  double.tryParse(_priceController.text.replaceAll(',', '.')) ??
-                      0.0,
-              type: 'PRODUTO',
-              company: widget.product?.company,
-            );
-            widget.onProductAdded(newProduct);
-            Navigator.pop(context);
-          },
+          onPressed: _isSaving ? null : _save,
           style: ElevatedButton.styleFrom(
             backgroundColor: const Color.fromARGB(255, 36, 54, 71),
             foregroundColor: Colors.white,
           ),
-          child: Text(widget.product == null ? 'Adicionar' : 'Salvar'),
+          child: _isSaving
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : Text(widget.product == null ? 'Adicionar' : 'Salvar'),
         ),
       ],
+    );
+  }
+
+  Future<void> _save() async {
+    final newProduct = ProductResponseDTO(
+      id: widget.product?.id ?? '',
+      name: _nameController.text,
+      description: _descriptionController.text,
+      price: double.tryParse(_priceController.text.replaceAll(',', '.')) ?? 0.0,
+      stockQuantity:
+          double.tryParse(_stockController.text.replaceAll(',', '.')) ?? 0.0,
+      minimumStock:
+          double.tryParse(_minimumStockController.text.replaceAll(',', '.')) ??
+              0.0,
+      lowStock: false,
+      type: 'PRODUTO',
+      company: widget.product?.company,
+    );
+
+    setState(() => _isSaving = true);
+    try {
+      await widget.onProductAdded(newProduct);
+      if (!mounted) return;
+      setState(() {
+        _feedbackError = false;
+        _feedbackMessage = 'Produto guardado com sucesso.';
+      });
+      await Future<void>.delayed(const Duration(milliseconds: 650));
+      if (mounted) Navigator.pop(context);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _feedbackError = true;
+        _feedbackMessage = ErrorMessageUtils.fromObject(
+          e,
+          fallback: 'Erro ao guardar produto.',
+        );
+      });
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
+  }
+
+  Widget _feedbackBox() {
+    final tone = _feedbackError ? Colors.redAccent : Colors.greenAccent;
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: tone.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: tone.withOpacity(0.45)),
+      ),
+      child: Text(
+        _feedbackMessage!,
+        style: TextStyle(color: tone, fontWeight: FontWeight.w600),
+      ),
     );
   }
 
   Widget _buildTextField(TextEditingController controller, String label) {
     return TextField(
       controller: controller,
+      enabled: !_isSaving,
       style: const TextStyle(color: Colors.white),
       decoration: InputDecoration(
         labelText: label,
@@ -98,6 +170,8 @@ class _AddProductDialogState extends State<AddProductDialog> {
     _nameController.dispose();
     _descriptionController.dispose();
     _priceController.dispose();
+    _stockController.dispose();
+    _minimumStockController.dispose();
     super.dispose();
   }
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:collection/collection.dart';
+import '../../../core/errors/error_message_utils.dart';
 import '../../../data/dto/budget/budget_response_dto.dart';
 import '../../../data/dto/budget/budget_update_dto.dart';
 import '../../../data/dto/item_budget/item_budget_create_dto.dart';
@@ -142,7 +143,12 @@ class _EditBudgetDialogState extends ConsumerState<EditBudgetDialog> {
                   );
                 },
                 loading: () => const Center(child: CircularProgressIndicator()),
-                error: (e, st) => Text('Erro ao carregar entidades: $e'),
+                error: (e, st) => Text(
+                  ErrorMessageUtils.fromObject(
+                    e,
+                    fallback: 'Erro ao carregar entidades.',
+                  ),
+                ),
               ),
               const SizedBox(height: 16),
 

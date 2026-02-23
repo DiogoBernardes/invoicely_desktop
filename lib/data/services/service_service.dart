@@ -1,6 +1,8 @@
 import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
 import '../../../config/dio_config.dart';
+import '../../core/errors/error_message_utils.dart';
 import '../dto/service/service_create_dto.dart';
 import '../dto/service/service_response_dto.dart';
 import '../dto/service/service_update_dto.dart';
@@ -27,7 +29,10 @@ class ServiceService {
           .toList();
     } on DioException catch (e) {
       throw Exception(
-        'Erro ao obter Serviços: ${e.response?.data ?? e.message}',
+        ErrorMessageUtils.fromDio(
+          e,
+          fallback: 'Erro ao obter servicos.',
+        ),
       );
     }
   }
@@ -42,7 +47,10 @@ class ServiceService {
       return ServiceResponseDTO.fromJson(response.data);
     } on DioException catch (e) {
       throw Exception(
-        'Erro ao obter Serviços: ${e.response?.data ?? e.message}',
+        ErrorMessageUtils.fromDio(
+          e,
+          fallback: 'Erro ao obter servico.',
+        ),
       );
     }
   }
@@ -58,13 +66,18 @@ class ServiceService {
       return ServiceResponseDTO.fromJson(response.data);
     } on DioException catch (e) {
       throw Exception(
-        'Erro ao criar Serviço: ${e.response?.data ?? e.message}',
+        ErrorMessageUtils.fromDio(
+          e,
+          fallback: 'Erro ao criar servico.',
+        ),
       );
     }
   }
 
   Future<ServiceResponseDTO> updateService(
-      String id, ServiceUpdateDTO dto) async {
+    String id,
+    ServiceUpdateDTO dto,
+  ) async {
     try {
       final token = await _getToken();
       final response = await _dio.put(
@@ -75,7 +88,10 @@ class ServiceService {
       return ServiceResponseDTO.fromJson(response.data);
     } on DioException catch (e) {
       throw Exception(
-        'Erro ao atualizar Serviço: ${e.response?.data ?? e.message}',
+        ErrorMessageUtils.fromDio(
+          e,
+          fallback: 'Erro ao atualizar servico.',
+        ),
       );
     }
   }
@@ -89,7 +105,10 @@ class ServiceService {
       );
     } on DioException catch (e) {
       throw Exception(
-        'Erro ao remover Serviço: ${e.response?.data ?? e.message}',
+        ErrorMessageUtils.fromDio(
+          e,
+          fallback: 'Erro ao remover servico.',
+        ),
       );
     }
   }

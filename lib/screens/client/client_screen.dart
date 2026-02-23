@@ -1,5 +1,10 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../core/errors/error_message_utils.dart';
+import '../../core/theme/app_theme.dart';
 import '../../data/dto/client/client_create_dto.dart';
 import '../../data/dto/client/client_response_dto.dart';
 import '../../data/dto/client/client_update_dto.dart';
@@ -8,6 +13,7 @@ import '../../widgets/dialogs/client/add_client_dialog.dart';
 import '../../widgets/dialogs/client/edit_client_dialog.dart';
 import '../../widgets/dialogs/client/remove_client_dialog.dart';
 import '../../widgets/global_app_bar.dart';
+import '../../widgets/ui/table_ui.dart';
 
 class ClientScreen extends ConsumerStatefulWidget {
   const ClientScreen({super.key});
@@ -19,8 +25,15 @@ class ClientScreen extends ConsumerStatefulWidget {
 class _ClientScreenState extends ConsumerState<ClientScreen> {
   final TextEditingController _searchController = TextEditingController();
   int _currentPage = 0;
-  final int _rowsPerPage = 10;
+  static const int _rowsPerPage = 10;
   String _searchQuery = '';
+  _ClientSort _sort = _ClientSort.nameAsc;
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -29,243 +42,267 @@ class _ClientScreenState extends ConsumerState<ClientScreen> {
     return Scaffold(
       appBar: const GlobalAppBar(title: 'Clientes'),
       drawer: const GlobalDrawer(),
-      body: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 80, vertical: 60),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+      body: TablePageShell(
+        title: 'Clientes',
+        icon: Icons.groups_rounded,
+        actions: [
+          OutlinedButton.icon(
+            onPressed: () =>
+                ref.read(clientNotifierProvider.notifier).loadClients(),
+            icon: const Icon(Icons.refresh_rounded, size: 18),
+            label: const Text('Atualizar'),
+          ),
+          ElevatedButton.icon(
+            onPressed: _showAddClientDialog,
+            icon: const Icon(Icons.add_rounded, size: 20),
+            label: const Text('Novo Cliente'),
+          ),
+        ],
+        filters: Row(
           children: [
-            // Header
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'Clientes',
-                  style: TextStyle(
-                      fontSize: 36,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white),
-                ),
-                ElevatedButton.icon(
-                  onPressed: () => _showAddClientDialog(),
-                  icon: const Icon(Icons.add, size: 20),
-                  label: const Text('Adicionar Cliente',
-                      style: TextStyle(fontWeight: FontWeight.w600)),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color.fromARGB(255, 36, 54, 71),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 20, vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                )
-              ],
-            ),
-            const SizedBox(height: 48),
-            // Search bar
-            TextField(
-              controller: _searchController,
-              decoration: InputDecoration(
-                hintText: 'Pesquisar por nome, email, NIF...',
-                prefixIcon: const Icon(Icons.search),
-                border:
-                    OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                filled: true,
-                fillColor: const Color.fromARGB(221, 36, 54, 71),
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              ),
-              onChanged: (value) {
-                setState(() {
-                  _searchQuery = value;
-                  _currentPage = 0;
-                });
-              },
-            ),
-            const SizedBox(height: 32),
-            // Table
             Expanded(
-              child: clientsAsync.when(
-                data: (clients) {
-                  final filtered = clients
-                      .where((c) =>
-                          c.name
-                              .toLowerCase()
-                              .contains(_searchQuery.toLowerCase()) ||
-                          c.email
-                              .toLowerCase()
-                              .contains(_searchQuery.toLowerCase()) ||
-                          c.nif
-                              .toLowerCase()
-                              .contains(_searchQuery.toLowerCase()))
-                      .toList();
-
-                  final totalRows = _rowsPerPage;
-                  final totalPages = (filtered.length / _rowsPerPage).ceil();
-                  final startIndex = _currentPage * _rowsPerPage;
-                  final endIndex = startIndex + _rowsPerPage;
-                  final pageClients = filtered.sublist(
-                    startIndex,
-                    endIndex > filtered.length ? filtered.length : endIndex,
-                  );
-
-                  // sempre 10 linhas
-                  final displayClients = List.generate(
-                      totalRows,
-                      (index) => index < pageClients.length
-                          ? pageClients[index]
-                          : null);
-
-                  const cellPadding =
-                      EdgeInsets.symmetric(horizontal: 16, vertical: 12);
-
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Expanded(
-                        child: SingleChildScrollView(
-                          scrollDirection: Axis.vertical,
-                          child: Container(
-                            decoration: BoxDecoration(
-                              border:
-                                  Border.all(color: Colors.white70, width: 1),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: DataTable(
-                              headingRowHeight: 56,
-                              headingRowColor: WidgetStateProperty.all(
-                                  const Color.fromARGB(221, 26, 38, 51)),
-                              dataRowColor: WidgetStateProperty.all(
-                                  const Color.fromARGB(255, 36, 54, 71)),
-                              columnSpacing: 0,
-                              horizontalMargin: 0,
-                              columns: [
-                                for (final label in [
-                                  'Nome',
-                                  'NIF',
-                                  'Endereço',
-                                  'Telefone',
-                                  'Email',
-                                  'Ações'
-                                ])
-                                  DataColumn(
-                                    label: Container(
-                                      padding: cellPadding,
-                                      child: Text(
-                                        label,
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                              ],
-                              rows: displayClients.map((client) {
-                                if (client == null) {
-                                  return DataRow(
-                                    cells: List.generate(
-                                      6,
-                                      (index) => DataCell(Container(
-                                        padding: cellPadding,
-                                        child: const Text(''),
-                                      )),
-                                    ),
-                                  );
-                                }
-
-                                return DataRow(
-                                  cells: [
-                                    DataCell(Container(
-                                      padding: cellPadding,
-                                      child: Text(client.name,
-                                          style: const TextStyle(
-                                              color: Colors.white)),
-                                    )),
-                                    DataCell(Container(
-                                      padding: cellPadding,
-                                      child: Text(client.nif,
-                                          style: const TextStyle(
-                                              color: Colors.white70)),
-                                    )),
-                                    DataCell(Container(
-                                      padding: cellPadding,
-                                      child: Text(client.address,
-                                          style: const TextStyle(
-                                              color: Colors.white70)),
-                                    )),
-                                    DataCell(Container(
-                                      padding: cellPadding,
-                                      child: Text(client.phone,
-                                          style: const TextStyle(
-                                              color: Colors.white70)),
-                                    )),
-                                    DataCell(Container(
-                                      padding: cellPadding,
-                                      child: Text(client.email,
-                                          style: const TextStyle(
-                                              color: Colors.white70)),
-                                    )),
-                                    DataCell(Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        IconButton(
-                                            icon: const Icon(Icons.edit,
-                                                size: 18),
-                                            onPressed: () =>
-                                                _editClient(client),
-                                            color: Colors.blue.shade400),
-                                        IconButton(
-                                            icon: const Icon(Icons.delete,
-                                                size: 18),
-                                            onPressed: () =>
-                                                _removeClient(client),
-                                            color: Colors.red.shade400),
-                                      ],
-                                    )),
-                                  ],
-                                );
-                              }).toList(),
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: [
-                          Text(
-                              'Página ${_currentPage + 1} de ${totalPages == 0 ? 1 : totalPages}',
-                              style: const TextStyle(color: Colors.white70)),
-                          const SizedBox(width: 16),
-                          IconButton(
-                            onPressed: _currentPage > 0
-                                ? () => setState(() => _currentPage--)
-                                : null,
-                            icon: const Icon(Icons.arrow_back_ios, size: 18),
-                            color: Colors.white70,
-                          ),
-                          IconButton(
-                            onPressed: _currentPage < totalPages - 1
-                                ? () => setState(() => _currentPage++)
-                                : null,
-                            icon: const Icon(Icons.arrow_forward_ios, size: 18),
-                            color: Colors.white70,
-                          ),
-                        ],
-                      )
-                    ],
-                  );
+              child: TableSearchField(
+                controller: _searchController,
+                hintText: 'Pesquisar por nome, email, NIF ou telefone',
+                onChanged: (value) {
+                  setState(() {
+                    _searchQuery = value;
+                    _currentPage = 0;
+                  });
                 },
-                loading: () => const Center(child: CircularProgressIndicator()),
-                error: (e, st) =>
-                    Center(child: Text('Erro ao carregar clientes: $e')),
               ),
-            )
+            ),
+            const SizedBox(width: 12),
+            SizedBox(
+              width: 220,
+              child: DropdownButtonFormField<_ClientSort>(
+                value: _sort,
+                decoration: const InputDecoration(
+                  labelText: 'Ordenar',
+                  prefixIcon: Icon(Icons.swap_vert_rounded, size: 18),
+                ),
+                items: _ClientSort.values
+                    .map(
+                      (value) => DropdownMenuItem<_ClientSort>(
+                        value: value,
+                        child: Text(_sortLabel(value)),
+                      ),
+                    )
+                    .toList(),
+                onChanged: (value) {
+                  if (value == null) return;
+                  setState(() {
+                    _sort = value;
+                    _currentPage = 0;
+                  });
+                },
+              ),
+            ),
+            if (_searchQuery.isNotEmpty) ...[
+              const SizedBox(width: 12),
+              _activeFilterPill(),
+            ],
           ],
         ),
+        content: clientsAsync.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (e, st) => Center(
+            child: Text(
+              ErrorMessageUtils.fromObject(
+                e,
+                fallback: 'Erro ao carregar clientes.',
+              ),
+            ),
+          ),
+          data: (clients) => _buildTableContent(clients),
+        ),
       ),
+    );
+  }
+
+  Widget _buildTableContent(List<ClientResponseDTO> clients) {
+    final query = _searchQuery.trim().toLowerCase();
+    final filtered = clients.where((client) {
+      return client.name.toLowerCase().contains(query) ||
+          client.email.toLowerCase().contains(query) ||
+          client.nif.toLowerCase().contains(query) ||
+          client.phone.toLowerCase().contains(query);
+    }).toList();
+
+    filtered.sort((a, b) {
+      switch (_sort) {
+        case _ClientSort.nameAsc:
+          return a.name.toLowerCase().compareTo(b.name.toLowerCase());
+        case _ClientSort.nameDesc:
+          return b.name.toLowerCase().compareTo(a.name.toLowerCase());
+        case _ClientSort.nifAsc:
+          return a.nif.compareTo(b.nif);
+        case _ClientSort.nifDesc:
+          return b.nif.compareTo(a.nif);
+      }
+    });
+
+    final totalPages = ((filtered.length + _rowsPerPage - 1) / _rowsPerPage)
+        .floor()
+        .clamp(1, 999999);
+    final effectivePage = _currentPage.clamp(0, totalPages - 1);
+    final startIndex = effectivePage * _rowsPerPage;
+    final endIndex = (startIndex + _rowsPerPage).clamp(0, filtered.length);
+    final pageClients = startIndex < filtered.length
+        ? filtered.sublist(startIndex, endIndex)
+        : <ClientResponseDTO>[];
+    final displayClients = List<ClientResponseDTO?>.generate(
+      _rowsPerPage,
+      (index) => index < pageClients.length ? pageClients[index] : null,
+    );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Expanded(
+          child: AppTableContainer(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final tableWidth = max(constraints.maxWidth, 900.0);
+                return SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: SizedBox(
+                    width: tableWidth,
+                    child: DataTable(
+                      headingRowHeight: 56,
+                      dataRowMinHeight: 54,
+                      dataRowMaxHeight: 62,
+                      horizontalMargin: 0,
+                      columnSpacing: 0,
+                      headingRowColor: WidgetStateProperty.all(
+                        AppTheme.panelColorSoft.withOpacity(0.95),
+                      ),
+                      dataRowColor: WidgetStateProperty.resolveWith((states) {
+                        if (states.contains(WidgetState.selected)) {
+                          return AppTheme.primaryColor.withOpacity(0.15);
+                        }
+                        return AppTheme.panelColor.withOpacity(0.78);
+                      }),
+                      columns: const [
+                        DataColumn(
+                          label: _HeaderCell('Nome'),
+                        ),
+                        DataColumn(
+                          label: _HeaderCell('NIF'),
+                        ),
+                        DataColumn(
+                          label: _HeaderCell('Endereco'),
+                        ),
+                        DataColumn(
+                          label: _HeaderCell('Telefone'),
+                        ),
+                        DataColumn(
+                          label: _HeaderCell('Email'),
+                        ),
+                        DataColumn(
+                          label: _HeaderCell('Acoes'),
+                        ),
+                      ],
+                      rows: displayClients
+                          .map((client) => _buildRow(client))
+                          .toList(),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        TablePaginationBar(
+          currentPage: effectivePage + 1,
+          totalPages: totalPages,
+          onPrevious: effectivePage > 0
+              ? () => setState(() => _currentPage = effectivePage - 1)
+              : null,
+          onNext: effectivePage < totalPages - 1
+              ? () => setState(() => _currentPage = effectivePage + 1)
+              : null,
+        ),
+      ],
+    );
+  }
+
+  Widget _activeFilterPill() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        color: AppTheme.primaryColor.withOpacity(0.16),
+        border: Border.all(color: AppTheme.primaryColor.withOpacity(0.48)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.filter_alt_rounded, size: 16),
+          const SizedBox(width: 8),
+          Text('"$_searchQuery"'),
+          const SizedBox(width: 6),
+          GestureDetector(
+            onTap: () {
+              _searchController.clear();
+              setState(() {
+                _searchQuery = '';
+                _currentPage = 0;
+              });
+            },
+            child: const Icon(Icons.close_rounded, size: 16),
+          ),
+        ],
+      ),
+    );
+  }
+
+  DataRow _buildRow(ClientResponseDTO? client) {
+    if (client == null) {
+      return const DataRow(
+        cells: [
+          DataCell(_EmptyCell()),
+          DataCell(_EmptyCell()),
+          DataCell(_EmptyCell()),
+          DataCell(_EmptyCell()),
+          DataCell(_EmptyCell()),
+          DataCell(_EmptyCell()),
+        ],
+      );
+    }
+
+    return DataRow(
+      cells: [
+        DataCell(_BodyCell(client.name, isPrimary: true)),
+        DataCell(_BodyCell(client.nif)),
+        DataCell(_BodyCell(client.address)),
+        DataCell(_BodyCell(client.phone)),
+        DataCell(_BodyCell(client.email)),
+        DataCell(
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TableActionIconButton(
+                  icon: Icons.edit_rounded,
+                  color: Colors.lightBlueAccent,
+                  tooltip: 'Editar cliente',
+                  onPressed: () => _editClient(client),
+                ),
+                const SizedBox(width: 8),
+                TableActionIconButton(
+                  icon: Icons.delete_outline_rounded,
+                  color: Colors.redAccent,
+                  tooltip: 'Remover cliente',
+                  onPressed: () => _removeClient(client),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -319,6 +356,83 @@ class _ClientScreenState extends ConsumerState<ClientScreen> {
               .deleteClient(client.id);
         },
       ),
+    );
+  }
+
+  String _sortLabel(_ClientSort value) {
+    switch (value) {
+      case _ClientSort.nameAsc:
+        return 'Nome ascendente';
+      case _ClientSort.nameDesc:
+        return 'Nome descendente';
+      case _ClientSort.nifAsc:
+        return 'NIF ascendente';
+      case _ClientSort.nifDesc:
+        return 'NIF descendente';
+    }
+  }
+}
+
+enum _ClientSort {
+  nameAsc,
+  nameDesc,
+  nifAsc,
+  nifDesc,
+}
+
+class _HeaderCell extends StatelessWidget {
+  final String label;
+
+  const _HeaderCell(this.label);
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      child: Text(
+        label,
+        style: const TextStyle(
+          color: AppTheme.textPrimaryColor,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+}
+
+class _BodyCell extends StatelessWidget {
+  final String value;
+  final bool isPrimary;
+
+  const _BodyCell(this.value, {this.isPrimary = false});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+      child: Text(
+        value,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(
+          color: isPrimary
+              ? AppTheme.textPrimaryColor
+              : AppTheme.textSecondaryColor,
+          fontWeight: isPrimary ? FontWeight.w600 : FontWeight.w500,
+        ),
+      ),
+    );
+  }
+}
+
+class _EmptyCell extends StatelessWidget {
+  const _EmptyCell();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Padding(
+      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      child: SizedBox(height: 20),
     );
   }
 }

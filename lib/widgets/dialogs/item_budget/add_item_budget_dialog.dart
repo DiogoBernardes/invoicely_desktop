@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../../core/errors/error_message_utils.dart';
 import '../../../data/dto/item_budget/item_budget_create_dto.dart';
 import '../../../data/dto/product/product_response_dto.dart';
 import '../../../data/dto/service/service_response_dto.dart';
@@ -21,12 +23,13 @@ class AddItemDialog extends ConsumerStatefulWidget {
   ConsumerState<AddItemDialog> createState() => _AddItemDialogState();
 }
 
-// Wrapper para produtos e serviços
 class ItemWrapper {
   final String id;
   final String name;
   final double price;
   final String type;
+  final double stockQuantity;
+  final bool lowStock;
   final ProductResponseDTO? product;
   final ServiceResponseDTO? service;
 
@@ -34,15 +37,21 @@ class ItemWrapper {
       : id = product!.id,
         name = product.name,
         price = product.price,
-        type = "Produto",
+        type = 'Produto',
+        stockQuantity = product.stockQuantity,
+        lowStock = product.lowStock,
         service = null;
 
   ItemWrapper.service(this.service)
       : id = service!.id,
         name = service.name,
         price = service.price,
-        type = "Serviço",
+        type = 'Servico',
+        stockQuantity = 0,
+        lowStock = false,
         product = null;
+
+  bool get isProduct => type == 'Produto';
 
   @override
   bool operator ==(other) =>
@@ -52,14 +61,14 @@ class ItemWrapper {
   int get hashCode => Object.hash(id, type);
 
   @override
-  String toString() => "$name ($type - €$price)";
+  String toString() => '$name ($type - EUR ${price.toStringAsFixed(2)})';
 }
 
 class _AddItemDialogState extends ConsumerState<AddItemDialog> {
   final _formKey = GlobalKey<FormState>();
 
   ItemWrapper? _selectedItem;
-  String _searchQuery = "";
+  String _searchQuery = '';
 
   double _unitPrice = 0;
   double _quantity = 1;
@@ -67,6 +76,7 @@ class _AddItemDialogState extends ConsumerState<AddItemDialog> {
   double _totalWithIva = 0;
 
   bool _dropdownOpened = false;
+  String? _feedbackMessage;
 
   @override
   void initState() {
@@ -104,14 +114,36 @@ class _AddItemDialogState extends ConsumerState<AddItemDialog> {
     final servicesAsync = ref.watch(serviceNotifierProvider);
 
     return CustomDialog(
-      title: widget.item == null ? "Adicionar Item" : "Editar Item",
+      title: widget.item == null ? 'Adicionar Item' : 'Editar Item',
       content: SingleChildScrollView(
         child: Form(
           key: _formKey,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // ===== SEARCH DROPDOWN CUSTOM =====
+              if (_feedbackMessage != null && _feedbackMessage!.isNotEmpty)
+                Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.only(bottom: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 10,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.redAccent.withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: Colors.redAccent.withOpacity(0.45),
+                    ),
+                  ),
+                  child: Text(
+                    _feedbackMessage!,
+                    style: const TextStyle(
+                      color: Colors.redAccent,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
               productsAsync.when(
                 data: (products) => servicesAsync.when(
                   data: (services) {
@@ -120,12 +152,11 @@ class _AddItemDialogState extends ConsumerState<AddItemDialog> {
                       ...services.map((s) => ItemWrapper.service(s)),
                     ];
 
-                    // Filtra os itens já adicionados, mas mantém o item que está sendo editado
                     final filteredItems = allItems.where((item) {
-                      if (widget.item != null && item.id == widget.item!.itemId)
+                      if (widget.item != null && item.id == widget.item!.itemId) {
                         return true;
-                      if (widget.excludedItemIds.contains(item.id))
-                        return false;
+                      }
+                      if (widget.excludedItemIds.contains(item.id)) return false;
                       return item.name
                           .toLowerCase()
                           .contains(_searchQuery.toLowerCase());
@@ -142,7 +173,9 @@ class _AddItemDialogState extends ConsumerState<AddItemDialog> {
                           },
                           child: Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 16),
+                              horizontal: 12,
+                              vertical: 16,
+                            ),
                             decoration: BoxDecoration(
                               color: const Color.fromARGB(255, 26, 38, 51),
                               borderRadius: BorderRadius.circular(8),
@@ -154,9 +187,8 @@ class _AddItemDialogState extends ConsumerState<AddItemDialog> {
                                 Expanded(
                                   child: Text(
                                     _selectedItem?.toString() ??
-                                        "Selecione um produto ou serviço",
-                                    style:
-                                        const TextStyle(color: Colors.white70),
+                                        'Selecione um produto ou servico',
+                                    style: const TextStyle(color: Colors.white70),
                                   ),
                                 ),
                                 Icon(
@@ -174,7 +206,7 @@ class _AddItemDialogState extends ConsumerState<AddItemDialog> {
                           TextField(
                             cursorColor: Colors.white,
                             style: const TextStyle(color: Colors.white),
-                            decoration: _inputDecoration("Pesquisar item"),
+                            decoration: _inputDecoration('Pesquisar item'),
                             onChanged: (val) {
                               setState(() {
                                 _searchQuery = val;
@@ -183,7 +215,7 @@ class _AddItemDialogState extends ConsumerState<AddItemDialog> {
                           ),
                           const SizedBox(height: 8),
                           Container(
-                            height: 200,
+                            height: 220,
                             decoration: BoxDecoration(
                               color: const Color.fromARGB(255, 26, 38, 51),
                               borderRadius: BorderRadius.circular(8),
@@ -198,6 +230,16 @@ class _AddItemDialogState extends ConsumerState<AddItemDialog> {
                                     item.toString(),
                                     style: const TextStyle(color: Colors.white),
                                   ),
+                                  subtitle: item.isProduct
+                                      ? Text(
+                                          'Stock: ${item.stockQuantity.toStringAsFixed(2)}',
+                                          style: TextStyle(
+                                            color: item.lowStock
+                                                ? Colors.orangeAccent
+                                                : Colors.white54,
+                                          ),
+                                        )
+                                      : null,
                                   onTap: () {
                                     setState(() {
                                       _selectedItem = item;
@@ -210,23 +252,32 @@ class _AddItemDialogState extends ConsumerState<AddItemDialog> {
                               },
                             ),
                           ),
-                        ]
+                        ],
                       ],
                     );
                   },
                   loading: () => const CircularProgressIndicator(),
-                  error: (e, s) => Text("Erro ao carregar serviços: $e"),
+                  error: (e, s) => Text(
+                    ErrorMessageUtils.fromObject(
+                      e,
+                      fallback: 'Erro ao carregar servicos.',
+                    ),
+                  ),
                 ),
                 loading: () => const CircularProgressIndicator(),
-                error: (e, s) => Text("Erro ao carregar produtos: $e"),
+                error: (e, s) => Text(
+                  ErrorMessageUtils.fromObject(
+                    e,
+                    fallback: 'Erro ao carregar produtos.',
+                  ),
+                ),
               ),
-
               const SizedBox(height: 16),
               TextFormField(
                 initialValue: _quantity.toString(),
                 cursorColor: Colors.white,
                 style: const TextStyle(color: Colors.white),
-                decoration: _inputDecoration("Quantidade"),
+                decoration: _inputDecoration('Quantidade'),
                 keyboardType: TextInputType.number,
                 onChanged: (v) {
                   _quantity = double.tryParse(v) ?? 1;
@@ -238,7 +289,7 @@ class _AddItemDialogState extends ConsumerState<AddItemDialog> {
                 initialValue: _unitPrice.toString(),
                 cursorColor: Colors.white,
                 style: const TextStyle(color: Colors.white),
-                decoration: _inputDecoration("Preço Unitário"),
+                decoration: _inputDecoration('Preco Unitario'),
                 keyboardType: TextInputType.number,
                 onChanged: (v) {
                   _unitPrice = double.tryParse(v) ?? 0;
@@ -250,16 +301,30 @@ class _AddItemDialogState extends ConsumerState<AddItemDialog> {
                 initialValue: _iva.toString(),
                 cursorColor: Colors.white,
                 style: const TextStyle(color: Colors.white),
-                decoration: _inputDecoration("IVA (%)"),
+                decoration: _inputDecoration('IVA (%)'),
                 keyboardType: TextInputType.number,
                 onChanged: (v) {
                   _iva = double.tryParse(v) ?? 0;
                   _calculateTotal();
                 },
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
+              if (_selectedItem != null && _selectedItem!.isProduct)
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Stock disponivel: ${_selectedItem!.stockQuantity.toStringAsFixed(2)}',
+                    style: TextStyle(
+                      color: _selectedItem!.lowStock
+                          ? Colors.orangeAccent
+                          : Colors.white70,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              const SizedBox(height: 12),
               Text(
-                "Total (IVA incluído): €${_totalWithIva.toStringAsFixed(2)}",
+                'Total (IVA incluido): EUR ${_totalWithIva.toStringAsFixed(2)}',
                 style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
@@ -274,13 +339,21 @@ class _AddItemDialogState extends ConsumerState<AddItemDialog> {
         TextButton(
           onPressed: () => Navigator.pop(context),
           child: const Text(
-            "Cancelar",
+            'Cancelar',
             style: TextStyle(color: Colors.white70),
           ),
         ),
         ElevatedButton(
           onPressed: () {
             if (_formKey.currentState!.validate() && _selectedItem != null) {
+              if (_selectedItem!.isProduct &&
+                  _quantity > _selectedItem!.stockQuantity) {
+                setState(() {
+                  _feedbackMessage = 'Quantidade superior ao stock disponivel.';
+                });
+                return;
+              }
+
               final result = ItemBudgetCreateDTO(
                 itemId: _selectedItem!.id,
                 quantity: _quantity,
@@ -294,7 +367,7 @@ class _AddItemDialogState extends ConsumerState<AddItemDialog> {
             backgroundColor: const Color.fromARGB(255, 36, 54, 71),
             foregroundColor: Colors.white,
           ),
-          child: const Text("Salvar"),
+          child: const Text('Salvar'),
         ),
       ],
     );

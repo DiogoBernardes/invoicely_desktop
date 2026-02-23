@@ -1,6 +1,8 @@
 import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
 import '../../config/dio_config.dart';
+import '../../core/errors/error_message_utils.dart';
 
 class AuthService {
   final Dio _dio = DioClient().dio;
@@ -12,32 +14,32 @@ class AuthService {
         'password': password,
       });
 
-      if (response.statusCode == 200 && response.data != null) {
-        final data = response.data;
-        final user = data['user'] ?? {};
-
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('jwt_access_token', data['accessToken'] ?? '');
-        await prefs.setString('jwt_refresh_token', data['refreshToken'] ?? '');
-        await prefs.setString('user_email', user['email'] ?? '');
-        await prefs.setString('user_id', user['id']?.toString() ?? '');
-        await prefs.setString('user_username', user['username'] ?? '');
-        await prefs.setBool(
-            'has_company', user['company'] != null && user['company'] != '');
-
-        return data;
-      } else {
+      if (response.statusCode != 200 || response.data == null) {
         throw Exception('Falha no login. Verifique as suas credenciais.');
       }
+
+      final data = response.data;
+      final user = data['user'] ?? {};
+
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('jwt_access_token', data['accessToken'] ?? '');
+      await prefs.setString('jwt_refresh_token', data['refreshToken'] ?? '');
+      await prefs.setString('user_email', user['email'] ?? '');
+      await prefs.setString('user_id', user['id']?.toString() ?? '');
+      await prefs.setString('user_username', user['username'] ?? '');
+      await prefs.setBool(
+        'has_company',
+        user['company'] != null && user['company'] != '',
+      );
+
+      return data;
     } on DioException catch (e) {
-      if (e.response != null && e.response?.data != null) {
-        final message = e.response?.data['message'] ??
-            e.response?.data['error'] ??
-            'Erro desconhecido.';
-        throw Exception(message);
-      } else {
-        throw Exception('Não foi possível conectar ao servidor.');
-      }
+      throw Exception(
+        ErrorMessageUtils.fromDio(
+          e,
+          fallback: 'Nao foi possivel efetuar login.',
+        ),
+      );
     }
   }
 
@@ -45,21 +47,30 @@ class AuthService {
     final prefs = await SharedPreferences.getInstance();
     final refreshToken = prefs.getString('jwt_refresh_token');
     if (refreshToken == null) {
-      throw Exception("Sessão expirada. Faça login novamente.");
+      throw Exception('Sessao expirada. Faca login novamente.');
     }
 
-    final response = await _dio.post('/auth/refresh', data: {
-      'refreshToken': refreshToken,
-    });
+    try {
+      final response = await _dio.post('/auth/refresh', data: {
+        'refreshToken': refreshToken,
+      });
 
-    final data = response.data;
-    if (data == null || data['accessToken'] == null) {
-      throw Exception("Não foi possível atualizar o token.");
-    }
+      final data = response.data;
+      if (data == null || data['accessToken'] == null) {
+        throw Exception('Nao foi possivel atualizar o token.');
+      }
 
-    await prefs.setString('jwt_access_token', data['accessToken']);
-    if (data['refreshToken'] != null) {
-      await prefs.setString('jwt_refresh_token', data['refreshToken']);
+      await prefs.setString('jwt_access_token', data['accessToken']);
+      if (data['refreshToken'] != null) {
+        await prefs.setString('jwt_refresh_token', data['refreshToken']);
+      }
+    } on DioException catch (e) {
+      throw Exception(
+        ErrorMessageUtils.fromDio(
+          e,
+          fallback: 'Nao foi possivel atualizar a sessao.',
+        ),
+      );
     }
   }
 
@@ -83,5 +94,82 @@ class AuthService {
     await prefs.remove('user_id');
     await prefs.remove('user_username');
     await prefs.remove('has_company');
+  }
+
+  Future<String> requestPasswordChange({
+    required String oldPassword,
+    required String newPassword,
+    required String confirmNewPassword,
+  }) async {
+    try {
+      final token = await _getToken();
+      final response = await _dio.put(
+        '/auth/change-password',
+        data: {
+          'oldPassword': oldPassword,
+          'newPassword': newPassword,
+          'confirmNewPassword': confirmNewPassword,
+        },
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+      return _extractSuccessMessage(
+        response.data,
+        fallback: 'Codigo de confirmacao enviado para o email.',
+      );
+    } on DioException catch (e) {
+      throw Exception(
+        ErrorMessageUtils.fromDio(
+          e,
+          fallback: 'Nao foi possivel enviar o codigo de confirmacao.',
+        ),
+      );
+    }
+  }
+
+  Future<String> confirmPasswordChange({
+    required String tokenCode,
+  }) async {
+    try {
+      final token = await _getToken();
+      final response = await _dio.put(
+        '/auth/change-password/confirm',
+        data: {'token': tokenCode},
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+      return _extractSuccessMessage(
+        response.data,
+        fallback: 'Password alterada com sucesso.',
+      );
+    } on DioException catch (e) {
+      throw Exception(
+        ErrorMessageUtils.fromDio(
+          e,
+          fallback: 'Nao foi possivel confirmar a alteracao da password.',
+        ),
+      );
+    }
+  }
+
+  Future<String?> _getToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('jwt_access_token');
+  }
+
+  String _extractSuccessMessage(dynamic data, {required String fallback}) {
+    if (data is Map<String, dynamic>) {
+      final parts = <String>[
+        data['message']?.toString() ?? '',
+        data['details']?.toString() ?? '',
+        data['nextStep']?.toString() ?? '',
+      ].where((text) => text.trim().isNotEmpty).toList();
+
+      if (parts.isNotEmpty) {
+        return parts.join('\n');
+      }
+    } else if (data is String && data.trim().isNotEmpty) {
+      return data.trim();
+    }
+
+    return fallback;
   }
 }

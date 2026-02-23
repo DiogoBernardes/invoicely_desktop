@@ -1,8 +1,10 @@
 import 'package:dio/dio.dart';
-import 'package:invoicely_desktop/data/dto/supplier/supplier_response_dto.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
 import '../../../config/dio_config.dart';
+import '../../core/errors/error_message_utils.dart';
 import '../dto/supplier/supplier_create_dto.dart';
+import '../dto/supplier/supplier_response_dto.dart';
 import '../dto/supplier/supplier_update_dto.dart';
 
 class SupplierService {
@@ -27,7 +29,29 @@ class SupplierService {
           .toList();
     } on DioException catch (e) {
       throw Exception(
-        'Erro ao obter fornecedores: ${e.response?.data ?? e.message}',
+        ErrorMessageUtils.fromDio(
+          e,
+          fallback: 'Erro ao obter fornecedores.',
+        ),
+      );
+    }
+  }
+
+  Future<SupplierResponseDto> getSupplier(String id) async {
+    try {
+      final token = await _getToken();
+      final response = await _dio.get(
+        '/entities/$id',
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+
+      return SupplierResponseDto.fromJson(response.data);
+    } on DioException catch (e) {
+      throw Exception(
+        ErrorMessageUtils.fromDio(
+          e,
+          fallback: 'Erro ao obter fornecedor.',
+        ),
       );
     }
   }
@@ -43,13 +67,18 @@ class SupplierService {
       return SupplierResponseDto.fromJson(response.data);
     } on DioException catch (e) {
       throw Exception(
-        'Erro ao criar fornecedor: ${e.response?.data ?? e.message}',
+        ErrorMessageUtils.fromDio(
+          e,
+          fallback: 'Erro ao criar fornecedor.',
+        ),
       );
     }
   }
 
   Future<SupplierResponseDto> updateSupplier(
-      String id, SupplierUpdateDto dto) async {
+    String id,
+    SupplierUpdateDto dto,
+  ) async {
     try {
       final token = await _getToken();
       final response = await _dio.put(
@@ -60,7 +89,10 @@ class SupplierService {
       return SupplierResponseDto.fromJson(response.data);
     } on DioException catch (e) {
       throw Exception(
-        'Erro ao atualizar fornecedor: ${e.response?.data ?? e.message}',
+        ErrorMessageUtils.fromDio(
+          e,
+          fallback: 'Erro ao atualizar fornecedor.',
+        ),
       );
     }
   }
@@ -74,7 +106,10 @@ class SupplierService {
       );
     } on DioException catch (e) {
       throw Exception(
-        'Erro ao remover fornecedor: ${e.response?.data ?? e.message}',
+        ErrorMessageUtils.fromDio(
+          e,
+          fallback: 'Erro ao remover fornecedor.',
+        ),
       );
     }
   }

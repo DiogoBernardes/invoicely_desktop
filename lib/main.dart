@@ -51,7 +51,59 @@ class InvoicelyApp extends StatelessWidget {
       title: 'Invoicely',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.darkTheme,
+      builder: (context, child) {
+        return Stack(
+          fit: StackFit.expand,
+          children: [
+            const DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: AppTheme.appBackgroundGradient,
+              ),
+            ),
+            const _AmbientLayer(),
+            if (child != null) child,
+          ],
+        );
+      },
       home: const LoginScreen(),
+    );
+  }
+}
+
+class _AmbientLayer extends StatelessWidget {
+  const _AmbientLayer();
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: Stack(
+        children: [
+          Positioned(
+            top: -120,
+            left: -110,
+            child: Container(
+              width: 340,
+              height: 340,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: const Color(0xFF3A8DFF).withOpacity(0.08),
+              ),
+            ),
+          ),
+          Positioned(
+            bottom: -140,
+            right: -100,
+            child: Container(
+              width: 320,
+              height: 320,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: const Color(0xFF1CC8A0).withOpacity(0.07),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

@@ -1,10 +1,12 @@
-// budget_service.dart
 import 'dart:io';
+
 import 'package:dio/dio.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
 import '../../../config/dio_config.dart';
+import '../../core/errors/error_message_utils.dart';
 import '../dto/budget/budget_create_dto.dart';
 import '../dto/budget/budget_response_dto.dart';
 import '../dto/budget/budget_update_dto.dart';
@@ -30,7 +32,11 @@ class BudgetService {
           .toList();
     } on DioException catch (e) {
       throw Exception(
-          'Erro ao obter budgets: ${e.response?.data ?? e.message}');
+        ErrorMessageUtils.fromDio(
+          e,
+          fallback: 'Erro ao obter orcamentos.',
+        ),
+      );
     }
   }
 
@@ -44,7 +50,12 @@ class BudgetService {
 
       return BudgetResponseDTO.fromJson(response.data);
     } on DioException catch (e) {
-      throw Exception('Erro ao obter budget: ${e.response?.data ?? e.message}');
+      throw Exception(
+        ErrorMessageUtils.fromDio(
+          e,
+          fallback: 'Erro ao obter orcamento.',
+        ),
+      );
     }
   }
 
@@ -58,7 +69,12 @@ class BudgetService {
       );
       return BudgetResponseDTO.fromJson(response.data);
     } on DioException catch (e) {
-      throw Exception('Erro ao criar budget: ${e.response?.data ?? e.message}');
+      throw Exception(
+        ErrorMessageUtils.fromDio(
+          e,
+          fallback: 'Erro ao criar orcamento.',
+        ),
+      );
     }
   }
 
@@ -73,7 +89,11 @@ class BudgetService {
       return BudgetResponseDTO.fromJson(response.data);
     } on DioException catch (e) {
       throw Exception(
-          'Erro ao atualizar budget: ${e.response?.data ?? e.message}');
+        ErrorMessageUtils.fromDio(
+          e,
+          fallback: 'Erro ao atualizar orcamento.',
+        ),
+      );
     }
   }
 
@@ -86,7 +106,11 @@ class BudgetService {
       );
     } on DioException catch (e) {
       throw Exception(
-          'Erro ao remover budget: ${e.response?.data ?? e.message}');
+        ErrorMessageUtils.fromDio(
+          e,
+          fallback: 'Erro ao remover orcamento.',
+        ),
+      );
     }
   }
 
@@ -99,7 +123,11 @@ class BudgetService {
       );
     } on DioException catch (e) {
       throw Exception(
-          'Erro ao enviar budget ao cliente: ${e.response?.data ?? e.message}');
+        ErrorMessageUtils.fromDio(
+          e,
+          fallback: 'Erro ao enviar orcamento para o cliente.',
+        ),
+      );
     }
   }
 
@@ -113,7 +141,11 @@ class BudgetService {
       );
     } on DioException catch (e) {
       throw Exception(
-          'Erro ao enviar budget por email: ${e.response?.data ?? e.message}');
+        ErrorMessageUtils.fromDio(
+          e,
+          fallback: 'Erro ao enviar orcamento por email.',
+        ),
+      );
     }
   }
 
@@ -129,7 +161,7 @@ class BudgetService {
         ),
       );
 
-      String filename = "budget.pdf";
+      String filename = 'budget.pdf';
       final contentDisposition = response.headers['content-disposition']?.first;
       if (contentDisposition != null) {
         final regex = RegExp(r'filename="(.+)"');
@@ -146,12 +178,23 @@ class BudgetService {
         fileName: filename,
       );
       if (result == null) return;
+
       final file = File(result);
       await file.writeAsBytes(fileBytes);
     } on DioException catch (e) {
-      throw Exception("Erro ao baixar PDF: ${e.response?.data ?? e.message}");
+      throw Exception(
+        ErrorMessageUtils.fromDio(
+          e,
+          fallback: 'Erro ao descarregar PDF.',
+        ),
+      );
     } catch (e) {
-      throw Exception("Erro inesperado ao baixar PDF: $e");
+      throw Exception(
+        ErrorMessageUtils.fromObject(
+          e,
+          fallback: 'Erro inesperado ao descarregar PDF.',
+        ),
+      );
     }
   }
 }

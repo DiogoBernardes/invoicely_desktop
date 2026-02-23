@@ -3,6 +3,7 @@ import '../item_budget/item_budget_response_dto.dart';
 
 class BudgetResponseDTO {
   final String id;
+  final String? referenceCode;
   final String entityId;
   final String entityName;
   final DateTime date;
@@ -15,6 +16,7 @@ class BudgetResponseDTO {
 
   BudgetResponseDTO({
     required this.id,
+    this.referenceCode,
     required this.entityId,
     required this.entityName,
     required this.date,
@@ -29,6 +31,7 @@ class BudgetResponseDTO {
   factory BudgetResponseDTO.fromJson(Map<String, dynamic> json) =>
       BudgetResponseDTO(
         id: json['id'],
+        referenceCode: json['referenceCode']?.toString(),
         entityId: json['entityId'],
         entityName: json['entityName'],
         date: DateTime.parse(json['date']),

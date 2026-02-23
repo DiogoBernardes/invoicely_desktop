@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+
+import '../../../core/errors/error_message_utils.dart';
 import '../../../data/dto/service/service_response_dto.dart';
 import '../custom_dialog.dart';
 
 class AddServiceDialog extends StatefulWidget {
   final ServiceResponseDTO? service;
-  final void Function(ServiceResponseDTO) onServiceAdded;
+  final Future<void> Function(ServiceResponseDTO) onServiceAdded;
 
   const AddServiceDialog({
     super.key,
@@ -21,6 +23,10 @@ class _AddServiceDialogState extends State<AddServiceDialog> {
   late TextEditingController _descriptionController;
   late TextEditingController _priceController;
 
+  bool _isSaving = false;
+  String? _feedbackMessage;
+  bool _feedbackError = false;
+
   @override
   void initState() {
     super.initState();
@@ -34,51 +40,99 @@ class _AddServiceDialogState extends State<AddServiceDialog> {
   @override
   Widget build(BuildContext context) {
     return CustomDialog(
-      title: widget.service == null ? 'Adicionar Serviço' : 'Editar Serviço',
+      title: widget.service == null ? 'Adicionar Servico' : 'Editar Servico',
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          if (_feedbackMessage != null && _feedbackMessage!.isNotEmpty)
+            _feedbackBox(),
           _buildTextField(_nameController, 'Nome'),
           const SizedBox(height: 12),
-          _buildTextField(_descriptionController, 'Descrição'),
+          _buildTextField(_descriptionController, 'Descricao'),
           const SizedBox(height: 12),
-          _buildTextField(_priceController, 'Preço'),
+          _buildTextField(_priceController, 'Preco'),
         ],
       ),
       actions: [
         TextButton(
-          onPressed: () => Navigator.pop(context),
+          onPressed: _isSaving ? null : () => Navigator.pop(context),
           child:
               const Text('Cancelar', style: TextStyle(color: Colors.white70)),
         ),
         ElevatedButton(
-          onPressed: () {
-            final newService = ServiceResponseDTO(
-              id: widget.service?.id ?? '',
-              name: _nameController.text,
-              description: _descriptionController.text,
-              price:
-                  double.tryParse(_priceController.text.replaceAll(',', '.')) ??
-                      0.0,
-              type: 'SERVICO',
-              company: widget.service?.company,
-            );
-            widget.onServiceAdded(newService);
-            Navigator.pop(context);
-          },
+          onPressed: _isSaving ? null : _save,
           style: ElevatedButton.styleFrom(
             backgroundColor: const Color.fromARGB(255, 36, 54, 71),
             foregroundColor: Colors.white,
           ),
-          child: Text(widget.service == null ? 'Adicionar' : 'Salvar'),
+          child: _isSaving
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : Text(widget.service == null ? 'Adicionar' : 'Salvar'),
         ),
       ],
+    );
+  }
+
+  Future<void> _save() async {
+    final newService = ServiceResponseDTO(
+      id: widget.service?.id ?? '',
+      name: _nameController.text,
+      description: _descriptionController.text,
+      price: double.tryParse(_priceController.text.replaceAll(',', '.')) ?? 0.0,
+      type: 'SERVICO',
+      company: widget.service?.company,
+    );
+
+    setState(() => _isSaving = true);
+    try {
+      await widget.onServiceAdded(newService);
+      if (!mounted) return;
+      setState(() {
+        _feedbackError = false;
+        _feedbackMessage = 'Servico guardado com sucesso.';
+      });
+      await Future<void>.delayed(const Duration(milliseconds: 650));
+      if (mounted) Navigator.pop(context);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _feedbackError = true;
+        _feedbackMessage = ErrorMessageUtils.fromObject(
+          e,
+          fallback: 'Erro ao guardar servico.',
+        );
+      });
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
+  }
+
+  Widget _feedbackBox() {
+    final tone = _feedbackError ? Colors.redAccent : Colors.greenAccent;
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: tone.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: tone.withOpacity(0.45)),
+      ),
+      child: Text(
+        _feedbackMessage!,
+        style: TextStyle(color: tone, fontWeight: FontWeight.w600),
+      ),
     );
   }
 
   Widget _buildTextField(TextEditingController controller, String label) {
     return TextField(
       controller: controller,
+      enabled: !_isSaving,
       style: const TextStyle(color: Colors.white),
       decoration: InputDecoration(
         labelText: label,

@@ -21,6 +21,10 @@ class SupplierNotifier
     }
   }
 
+  Future<SupplierResponseDto> loadSupplier(String id) async {
+    return _repository.fetchSupplier(id);
+  }
+
   Future<void> createSupplier(SupplierCreateDto dto) async {
     await _repository.createSupplier(dto);
     await loadSuppliers();

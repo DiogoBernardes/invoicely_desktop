@@ -7,6 +7,7 @@ import '../../data/dto/budget/budget_response_dto.dart';
 import '../../data/dto/client/client_response_dto.dart';
 import '../../data/dto/company/company_response_dto.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/errors/error_message_utils.dart';
 import '../../providers/budget_provider.dart';
 import '../../widgets/dialogs/custom_dialog.dart';
 import '../../widgets/global_app_bar.dart';
@@ -95,7 +96,14 @@ class BudgetDetailScreen extends ConsumerWidget {
           );
         },
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, st) => Center(child: Text('Erro ao carregar budget: $e')),
+        error: (e, st) => Center(
+          child: Text(
+            ErrorMessageUtils.fromObject(
+              e,
+              fallback: 'Erro ao carregar orcamento.',
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -137,8 +145,8 @@ class BudgetDetailScreen extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildHeaderInfoField(
-                        theme, "Nº Orçamento", "#${budget.id}",
+                    _buildHeaderInfoField(theme, "Nº Orçamento",
+                        "#${budget.referenceCode ?? budget.id}",
                         isBudgetID: true),
                     const SizedBox(height: 2),
                     _buildHeaderInfoField(theme, "Data",
@@ -255,7 +263,14 @@ class BudgetDetailScreen extends ConsumerWidget {
         );
       },
       loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, st) => Center(child: Text('Erro ao carregar cliente: $e')),
+      error: (e, st) => Center(
+        child: Text(
+          ErrorMessageUtils.fromObject(
+            e,
+            fallback: 'Erro ao carregar cliente.',
+          ),
+        ),
+      ),
     );
   }
 
@@ -435,10 +450,11 @@ class BudgetDetailScreen extends ConsumerWidget {
   // --- ACTION BUTTONS ---
   Widget _buildActionButtons(
       BuildContext context, WidgetRef ref, BudgetResponseDTO budget) {
-    if (budget.state.toUpperCase() == 'REJEITADO')
+    if (budget.state.toUpperCase() == 'REJEITADO') {
       return const SizedBox.shrink();
+    }
 
-    Future<void> _showDialog(String title, String message) async {
+    Future<void> showDialogMessage(String title, String message) async {
       return showDialog(
         context: context,
         builder: (context) => CustomDialog(
@@ -464,17 +480,24 @@ class BudgetDetailScreen extends ConsumerWidget {
             icon: const Icon(Icons.download, color: AppTheme.textPrimaryColor),
             onPressed: () async {
               if (budget.pdfUrl == null || budget.pdfUrl!.isEmpty) {
-                await _showDialog(
-                    'Erro', 'Nenhum PDF disponível para download');
+                await showDialogMessage(
+                    'Erro', 'Nenhum PDF disponivel para download');
                 return;
               }
               try {
                 await ref
                     .read(budgetNotifierProvider.notifier)
                     .downloadPdf(budget.id);
-                await _showDialog('Sucesso', 'Download realizado com sucesso');
+                await showDialogMessage(
+                    'Sucesso', 'Download realizado com sucesso');
               } catch (e) {
-                await _showDialog('Erro', 'Erro ao descarregar PDF: $e');
+                await showDialogMessage(
+                  'Erro',
+                  ErrorMessageUtils.fromObject(
+                    e,
+                    fallback: 'Erro ao descarregar PDF.',
+                  ),
+                );
               }
             },
             label: const Text('Download PDF',
@@ -492,9 +515,16 @@ class BudgetDetailScreen extends ConsumerWidget {
                 await ref
                     .read(budgetNotifierProvider.notifier)
                     .sendToClient(budget.id);
-                await _showDialog('Sucesso', 'Enviado ao cliente com sucesso');
+                await showDialogMessage(
+                    'Sucesso', 'Enviado ao cliente com sucesso');
               } catch (e) {
-                await _showDialog('Erro', 'Erro ao enviar para o cliente: $e');
+                await showDialogMessage(
+                  'Erro',
+                  ErrorMessageUtils.fromObject(
+                    e,
+                    fallback: 'Erro ao enviar para o cliente.',
+                  ),
+                );
               }
             },
             label: const Text('Enviar Cliente',
@@ -535,69 +565,118 @@ class BudgetDetailScreen extends ConsumerWidget {
       BuildContext context, WidgetRef ref, BudgetResponseDTO budget) async {
     final formKey = GlobalKey<FormState>();
     String? clientEmail;
+    String? feedbackMessage;
+    bool feedbackError = false;
+    bool isSending = false;
 
     return showDialog<void>(
       context: context,
       builder: (BuildContext dialogContext) {
-        return AlertDialog(
-          backgroundColor: const Color.fromARGB(255, 36, 54, 71),
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          title: const Text('Enviar Orçamento por Email',
-              style:
-                  TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-          content: Form(
-            key: formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('Insira o endereço de email:',
-                    style: TextStyle(color: Colors.white70)),
-                const SizedBox(height: 16),
-                TextFormField(
-                  decoration: const InputDecoration(
-                    labelText: 'Email',
-                    labelStyle: TextStyle(color: Colors.white70),
-                    border: OutlineInputBorder(),
-                    enabledBorder: OutlineInputBorder(
-                        borderSide: BorderSide(color: Colors.white54)),
+        return StatefulBuilder(
+          builder: (context, setLocalState) {
+            return CustomDialog(
+              title: 'Enviar Orcamento por Email',
+              icon: Icons.email_outlined,
+              subtitle: 'Introduza o endereco de email de destino',
+              content: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (feedbackMessage != null && feedbackMessage!.isNotEmpty)
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
+                      ),
+                      decoration: BoxDecoration(
+                        color: (feedbackError ? Colors.redAccent : Colors.greenAccent)
+                            .withOpacity(0.12),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: (feedbackError ? Colors.redAccent : Colors.greenAccent)
+                              .withOpacity(0.45),
+                        ),
+                      ),
+                      child: Text(
+                        feedbackMessage!,
+                        style: TextStyle(
+                          color: feedbackError ? Colors.redAccent : Colors.greenAccent,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  Form(
+                    key: formKey,
+                    child: TextFormField(
+                      decoration: const InputDecoration(
+                        labelText: 'Email',
+                        prefixIcon: Icon(Icons.alternate_email_rounded, size: 18),
+                      ),
+                      onSaved: (value) => clientEmail = value?.trim(),
+                      validator: (value) {
+                        if (value == null || value.trim().isEmpty) {
+                          return 'Por favor, insira um email.';
+                        }
+                        return null;
+                      },
+                    ),
                   ),
-                  style: const TextStyle(color: Colors.white),
-                  onSaved: (value) => clientEmail = value,
-                  validator: (value) {
-                    if (value == null || value.isEmpty)
-                      return 'Por favor, insira um email.';
-                    return null;
-                  },
+                ],
+              ),
+              actions: <Widget>[
+                TextButton(
+                  child: const Text('Cancelar'),
+                  onPressed: isSending ? null : () => Navigator.of(dialogContext).pop(),
+                ),
+                ElevatedButton(
+                  onPressed: isSending
+                      ? null
+                      : () async {
+                          if (!formKey.currentState!.validate()) return;
+                          formKey.currentState!.save();
+                          setLocalState(() {
+                            isSending = true;
+                            feedbackMessage = null;
+                          });
+                          try {
+                            await ref
+                                .read(budgetNotifierProvider.notifier)
+                                .sendByEmail(budget.id, clientEmail!);
+                            if (!dialogContext.mounted) return;
+                            setLocalState(() {
+                              isSending = false;
+                              feedbackError = false;
+                              feedbackMessage = 'Email enviado com sucesso.';
+                            });
+                            await Future<void>.delayed(
+                              const Duration(milliseconds: 800),
+                            );
+                            if (dialogContext.mounted) {
+                              Navigator.of(dialogContext).pop();
+                            }
+                          } catch (e) {
+                            setLocalState(() {
+                              isSending = false;
+                              feedbackError = true;
+                              feedbackMessage = ErrorMessageUtils.fromObject(
+                                e,
+                                fallback: 'Erro ao enviar email.',
+                              );
+                            });
+                          }
+                        },
+                  child: isSending
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text('Enviar'),
                 ),
               ],
-            ),
-          ),
-          actions: <Widget>[
-            TextButton(
-              child: const Text('Cancelar',
-                  style: TextStyle(color: Colors.white70)),
-              onPressed: () => Navigator.of(dialogContext).pop(),
-            ),
-            ElevatedButton(
-              child: const Text('Enviar'),
-              onPressed: () async {
-                if (formKey.currentState!.validate()) {
-                  formKey.currentState!.save();
-                  try {
-                    await ref
-                        .read(budgetNotifierProvider.notifier)
-                        .sendByEmail(budget.id, clientEmail!);
-                    Navigator.of(dialogContext).pop();
-                  } catch (e) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Erro ao enviar: $e')));
-                  }
-                }
-              },
-            ),
-          ],
+              maxWidthFactor: 0.42,
+            );
+          },
         );
       },
     );

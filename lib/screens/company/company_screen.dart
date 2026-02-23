@@ -1,11 +1,16 @@
 import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
+
+import '../../core/theme/app_theme.dart';
+import '../../data/dto/company/company_response_dto.dart';
 import '../../providers/company_provider.dart';
 import '../../widgets/company/protected_image.dart';
+import '../../widgets/dialogs/custom_dialog.dart';
 import '../../widgets/global_app_bar.dart';
-import '../../data/dto/company/company_response_dto.dart';
+import '../../widgets/ui/table_ui.dart';
 
 class CompanyScreen extends ConsumerStatefulWidget {
   const CompanyScreen({super.key});
@@ -16,7 +21,6 @@ class CompanyScreen extends ConsumerStatefulWidget {
 
 class _CompanyScreenState extends ConsumerState<CompanyScreen> {
   bool _editing = false;
-
   late TextEditingController _emailController;
   late TextEditingController _phoneController;
   late TextEditingController _addressController;
@@ -49,62 +53,71 @@ class _CompanyScreenState extends ConsumerState<CompanyScreen> {
   }
 
   Future<bool> _confirmDialog(String message) async {
-    return await showDialog<bool>(
-          context: context,
-          builder: (context) => AlertDialog(
-            backgroundColor: const Color(0xFF1E1E1E),
-            title: const Text('Confirmação',
-                style: TextStyle(color: Colors.white)),
-            content:
-                Text(message, style: const TextStyle(color: Colors.white70)),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(false),
-                child:
-                    const Text('Não', style: TextStyle(color: Colors.white70)),
-              ),
-              ElevatedButton(
-                onPressed: () => Navigator.of(context).pop(true),
-                child: const Text('Sim'),
-              ),
-            ],
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => CustomDialog(
+        title: 'Confirmacao',
+        icon: Icons.help_outline_rounded,
+        content: Text(
+          message,
+          style: const TextStyle(color: AppTheme.textPrimaryColor),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Nao'),
           ),
-        ) ??
-        false;
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Sim'),
+          ),
+        ],
+      ),
+    );
+    return result ?? false;
   }
 
-  void _onCancel(CompanyResponseDTO company) async {
-    if (await _confirmDialog('Tem certeza que quer cancelar as alterações?')) {
-      setState(() {
-        _editing = false;
-        _newLogo = null;
-        _newSignature = null;
-        _newStamp = null;
-        _emailController.text = company.email;
-        _phoneController.text = company.phone;
-        _addressController.text = company.address;
-      });
-    }
+  void _syncControllers(CompanyResponseDTO company) {
+    _emailController.text = company.email;
+    _phoneController.text = company.phone;
+    _addressController.text = company.address;
   }
 
-  void _onSave() async {
-    if (await _confirmDialog('Deseja salvar as alterações?')) {
-      await ref.read(companyNotifierProvider.notifier).updateCompany(
-            email: _emailController.text,
-            phone: _phoneController.text,
-            address: _addressController.text,
-            logoFile: _newLogo,
-            signatureFile: _newSignature,
-            stampFile: _newStamp,
-          );
+  Future<void> _onCancel(CompanyResponseDTO company) async {
+    final confirmed = await _confirmDialog(
+      'Tem a certeza que quer cancelar as alteracoes?',
+    );
+    if (!confirmed) return;
 
-      setState(() {
-        _editing = false;
-        _newLogo = null;
-        _newSignature = null;
-        _newStamp = null;
-      });
-    }
+    setState(() {
+      _editing = false;
+      _newLogo = null;
+      _newSignature = null;
+      _newStamp = null;
+      _syncControllers(company);
+    });
+  }
+
+  Future<void> _onSave() async {
+    final confirmed = await _confirmDialog('Deseja guardar as alteracoes?');
+    if (!confirmed) return;
+
+    await ref.read(companyNotifierProvider.notifier).updateCompany(
+          email: _emailController.text.trim(),
+          phone: _phoneController.text.trim(),
+          address: _addressController.text.trim(),
+          logoFile: _newLogo,
+          signatureFile: _newSignature,
+          stampFile: _newStamp,
+        );
+
+    if (!mounted) return;
+    setState(() {
+      _editing = false;
+      _newLogo = null;
+      _newSignature = null;
+      _newStamp = null;
+    });
   }
 
   @override
@@ -113,370 +126,562 @@ class _CompanyScreenState extends ConsumerState<CompanyScreen> {
 
     return Scaffold(
       appBar: const GlobalAppBar(title: 'Perfil da Empresa'),
-      backgroundColor: const Color(0xFF0F141A),
+      drawer: const GlobalDrawer(),
       body: companyAsync.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (err, _) => _ErrorState(
+          message: err.toString(),
+          onRetry: () =>
+              ref.read(companyNotifierProvider.notifier).fetchCompany(),
+        ),
         data: (company) {
           if (company == null) {
-            return const Center(
-              child: Text(
-                "Nenhuma empresa registada ainda.",
-                style: TextStyle(color: Colors.white70, fontSize: 18),
-              ),
-            );
+            return const _EmptyState();
           }
 
           if (!_editing) {
-            _emailController.text = company.email;
-            _phoneController.text = company.phone;
-            _addressController.text = company.address;
+            _syncControllers(company);
           }
 
-          return Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 900),
-              child: Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 20, vertical: 100),
+          return LayoutBuilder(
+            builder: (context, constraints) {
+              final compact = constraints.maxWidth < 1200;
+              final horizontalPadding = compact ? 20.0 : 56.0;
+              final topPadding = compact ? 24.0 : 34.0;
+
+              return SingleChildScrollView(
+                padding: EdgeInsets.fromLTRB(
+                  horizontalPadding,
+                  topPadding,
+                  horizontalPadding,
+                  30,
+                ),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // Header com logo e nome
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        Hero(
-                          tag: 'company-logo',
-                          child: GestureDetector(
-                            onTap: _editing
-                                ? () async {
-                                    final file = await _pickImage();
-                                    if (file != null) {
-                                      setState(() => _newLogo = file);
-                                    }
-                                  }
-                                : null,
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(14),
-                              child: Container(
-                                width: 130,
-                                height: 130,
-                                color: Colors.grey[800],
-                                child: _newLogo != null
-                                    ? Image.file(_newLogo!, fit: BoxFit.cover)
-                                    : company.logoUrl != null
-                                        ? ProtectedImage(
-                                            url: company.logoUrl!,
-                                            width: 130,
-                                            height: 130,
-                                          )
-                                        : const Icon(Icons.business,
-                                            size: 60, color: Colors.white),
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 36),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                company.name,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 32,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              const Text(
-                                "Informações da Empresa",
-                                style: TextStyle(
-                                    color: Colors.white70, fontSize: 16),
-                              ),
-                            ],
-                          ),
-                        ),
-                        ElevatedButton.icon(
-                          icon: Icon(_editing ? Icons.close : Icons.edit,
-                              size: 18),
-                          label: Text(_editing ? 'Cancelar' : 'Editar'),
-                          onPressed: () {
-                            if (_editing) {
-                              _onCancel(company);
-                            } else {
-                              setState(() => _editing = true);
-                            }
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF1C2B39),
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 16, vertical: 12),
-                          ),
-                        ),
-                      ],
-                    ),
-
-                    const SizedBox(height: 48),
-
-                    // Campos principais
-                    Expanded(
-                      child: SingleChildScrollView(
-                        child: Column(
+                    _buildHeroCard(company, compact),
+                    const SizedBox(height: 18),
+                    _buildInfoCard(company, compact),
+                    const SizedBox(height: 18),
+                    _buildMediaCard(company, compact),
+                    if (_editing) ...[
+                      const SizedBox(height: 18),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
                           children: [
-                            Wrap(
-                              runSpacing: 20,
-                              spacing: 60,
-                              children: [
-                                _infoCard(Icons.badge, "NIF", company.nif,
-                                    editable: false),
-                                _infoCard(
-                                    Icons.email, "Email", _emailController.text,
-                                    editable: _editing,
-                                    controller: _emailController),
-                                _infoCard(Icons.phone, "Telefone",
-                                    _phoneController.text,
-                                    editable: _editing,
-                                    controller: _phoneController),
-                                _infoCard(Icons.location_on, "Endereço",
-                                    _addressController.text,
-                                    editable: _editing,
-                                    controller: _addressController),
-                              ],
+                            OutlinedButton.icon(
+                              onPressed: () => _onCancel(company),
+                              icon: const Icon(Icons.close_rounded, size: 18),
+                              label: const Text('Cancelar'),
                             ),
-
-                            const SizedBox(height: 24),
-
-                            // Assinatura / Carimbo
-                            Container(
-                              width: double.infinity,
-                              padding: const EdgeInsets.all(20),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF18222D),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceEvenly,
-                                children: [
-                                  _imageSelector(
-                                    title: 'Assinatura',
-                                    currentUrl: company.signatureUrl,
-                                    newFile: _newSignature,
-                                    onPick: () async {
-                                      final file = await _pickImage();
-                                      if (file != null) {
-                                        setState(() => _newSignature = file);
-                                      }
-                                    },
-                                    editable: _editing,
-                                    width: 200,
-                                    height: 120,
-                                  ),
-                                  _imageSelector(
-                                    title: 'Carimbo',
-                                    currentUrl: company.stampUrl,
-                                    newFile: _newStamp,
-                                    onPick: () async {
-                                      final file = await _pickImage();
-                                      if (file != null) {
-                                        setState(() => _newStamp = file);
-                                      }
-                                    },
-                                    editable: _editing,
-                                    width: 200,
-                                    height: 120,
-                                  ),
-                                ],
-                              ),
+                            const SizedBox(width: 10),
+                            ElevatedButton.icon(
+                              onPressed: _onSave,
+                              icon: const Icon(Icons.save_rounded, size: 18),
+                              label: const Text('Guardar alteracoes'),
                             ),
-
-                            const SizedBox(height: 24),
-
-                            if (_editing)
-                              Align(
-                                alignment: Alignment.centerRight,
-                                child: ElevatedButton.icon(
-                                  onPressed: _onSave,
-                                  icon: const Icon(Icons.save),
-                                  label: const Text('Guardar alterações'),
-                                  style: ElevatedButton.styleFrom(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 20, vertical: 14),
-                                  ),
-                                ),
-                              ),
                           ],
                         ),
                       ),
-                    ),
+                    ],
                   ],
                 ),
-              ),
-            ),
+              );
+            },
           );
         },
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, _) => Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.error_outline,
-                  color: Colors.redAccent, size: 48),
-              const SizedBox(height: 12),
-              Text(
-                err.toString(),
-                style: const TextStyle(color: Colors.white70),
-              ),
-              const SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: () =>
-                    ref.read(companyNotifierProvider.notifier).fetchCompany(),
-                child: const Text("Tentar novamente"),
-              )
-            ],
-          ),
-        ),
       ),
     );
   }
 
-  Widget _infoCard(IconData icon, String label, String value,
-      {bool editable = false, TextEditingController? controller}) {
-    return SizedBox(
-      width: 400,
-      child: Card(
-        color: const Color(0xFF1C2B39),
-        elevation: 3,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-          child: Row(
-            children: [
-              Icon(icon, color: Colors.white70, size: 26),
-              const SizedBox(width: 16),
-              Expanded(
-                child: editable && controller != null
-                    ? TextField(
-                        controller: controller,
-                        style: const TextStyle(color: Colors.white),
-                        decoration: InputDecoration(
-                          labelText: label,
-                          labelStyle: const TextStyle(color: Colors.white54),
-                          filled: true,
-                          fillColor: const Color(0xFF253444),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                            borderSide: BorderSide.none,
-                          ),
+  Widget _buildHeroCard(CompanyResponseDTO company, bool compact) {
+    return GlassPanel(
+      padding: const EdgeInsets.all(22),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          GestureDetector(
+            onTap: !_editing
+                ? null
+                : () async {
+                    final file = await _pickImage();
+                    if (file == null) return;
+                    setState(() => _newLogo = file);
+                  },
+            child: Container(
+              width: compact ? 100 : 124,
+              height: compact ? 100 : 124,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                border:
+                    Border.all(color: AppTheme.borderColor.withOpacity(0.85)),
+                color: AppTheme.panelColorSoft.withOpacity(0.7),
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: _newLogo != null
+                  ? Image.file(_newLogo!, fit: BoxFit.cover)
+                  : company.logoUrl != null
+                      ? ProtectedImage(
+                          url: company.logoUrl!,
+                          width: compact ? 100 : 124,
+                          height: compact ? 100 : 124,
+                        )
+                      : const Icon(
+                          Icons.business_rounded,
+                          size: 52,
+                          color: AppTheme.textSecondaryColor,
                         ),
-                      )
-                    : Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(label.toUpperCase(),
-                              style: const TextStyle(
-                                  color: Colors.white54, fontSize: 13)),
-                          const SizedBox(height: 6),
-                          Text(value.isEmpty ? '-' : value,
-                              style: const TextStyle(
-                                  color: Colors.white, fontSize: 16)),
-                        ],
-                      ),
-              ),
-            ],
+            ),
           ),
-        ),
+          const SizedBox(width: 18),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  company.name,
+                  style: const TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.w800,
+                    color: AppTheme.textPrimaryColor,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                const Text(
+                  'Dados institucionais e documentos oficiais da empresa.',
+                  style: TextStyle(
+                    color: AppTheme.textSecondaryColor,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                _TagLabel(text: 'NIF ${company.nif}'),
+              ],
+            ),
+          ),
+          ElevatedButton.icon(
+            onPressed: () {
+              if (_editing) {
+                _onCancel(company);
+                return;
+              }
+              setState(() => _editing = true);
+            },
+            icon: Icon(_editing ? Icons.close_rounded : Icons.edit_rounded,
+                size: 18),
+            label: Text(_editing ? 'Cancelar' : 'Editar'),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _imageSelector({
-    required String title,
-    String? currentUrl,
-    File? newFile,
-    required VoidCallback onPick,
-    required bool editable,
-    double width = 160,
-    double height = 100,
-  }) {
-    bool _hovering = false;
+  Widget _buildInfoCard(CompanyResponseDTO company, bool compact) {
+    return GlassPanel(
+      padding: const EdgeInsets.all(22),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Informacao de contacto',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              color: AppTheme.textPrimaryColor,
+            ),
+          ),
+          const SizedBox(height: 12),
+          if (compact) ...[
+            _InfoFieldCard(
+              icon: Icons.badge_rounded,
+              label: 'NIF',
+              value: company.nif,
+              editable: false,
+            ),
+            const SizedBox(height: 10),
+            _InfoFieldCard(
+              icon: Icons.email_rounded,
+              label: 'Email',
+              value: _emailController.text,
+              editable: _editing,
+              controller: _emailController,
+            ),
+            const SizedBox(height: 10),
+            _InfoFieldCard(
+              icon: Icons.phone_rounded,
+              label: 'Telefone',
+              value: _phoneController.text,
+              editable: _editing,
+              controller: _phoneController,
+            ),
+            const SizedBox(height: 10),
+            _InfoFieldCard(
+              icon: Icons.location_on_rounded,
+              label: 'Endereco',
+              value: _addressController.text,
+              editable: _editing,
+              controller: _addressController,
+            ),
+          ] else ...[
+            Row(
+              children: [
+                Expanded(
+                  child: _InfoFieldCard(
+                    icon: Icons.badge_rounded,
+                    label: 'NIF',
+                    value: company.nif,
+                    editable: false,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _InfoFieldCard(
+                    icon: Icons.email_rounded,
+                    label: 'Email',
+                    value: _emailController.text,
+                    editable: _editing,
+                    controller: _emailController,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: _InfoFieldCard(
+                    icon: Icons.phone_rounded,
+                    label: 'Telefone',
+                    value: _phoneController.text,
+                    editable: _editing,
+                    controller: _phoneController,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _InfoFieldCard(
+                    icon: Icons.location_on_rounded,
+                    label: 'Endereco',
+                    value: _addressController.text,
+                    editable: _editing,
+                    controller: _addressController,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
 
-    return StatefulBuilder(
-      builder: (context, setHoverState) {
-        return Column(
-          children: [
-            Text(title,
-                style: const TextStyle(color: Colors.white70, fontSize: 15)),
-            const SizedBox(height: 8),
-            MouseRegion(
-              onEnter: (_) => setHoverState(() => _hovering = true),
-              onExit: (_) => setHoverState(() => _hovering = false),
-              child: GestureDetector(
-                onTap: editable ? onPick : null,
-                child: Stack(
-                  children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(10),
-                      child: Container(
-                        width: width,
-                        height: height,
-                        color: const Color(0xFF253444),
-                        child: newFile != null
-                            ? Image.file(newFile, fit: BoxFit.cover)
-                            : currentUrl != null
-                                ? ProtectedImage(url: currentUrl)
-                                : const SizedBox.shrink(),
+  Widget _buildMediaCard(CompanyResponseDTO company, bool compact) {
+    return GlassPanel(
+      padding: const EdgeInsets.all(22),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Assinatura e carimbo',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              color: AppTheme.textPrimaryColor,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 18,
+            runSpacing: 18,
+            children: [
+              _MediaSelector(
+                title: 'Assinatura',
+                width: compact ? 240 : 300,
+                height: 130,
+                currentUrl: company.signatureUrl,
+                newFile: _newSignature,
+                editable: _editing,
+                onPick: () async {
+                  final file = await _pickImage();
+                  if (file == null) return;
+                  setState(() => _newSignature = file);
+                },
+              ),
+              _MediaSelector(
+                title: 'Carimbo',
+                width: compact ? 240 : 300,
+                height: 130,
+                currentUrl: company.stampUrl,
+                newFile: _newStamp,
+                editable: _editing,
+                onPick: () async {
+                  final file = await _pickImage();
+                  if (file == null) return;
+                  setState(() => _newStamp = file);
+                },
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _InfoFieldCard extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+  final bool editable;
+  final TextEditingController? controller;
+
+  const _InfoFieldCard({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.editable,
+    this.controller,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppTheme.borderColor.withOpacity(0.7)),
+        color: AppTheme.panelColorSoft.withOpacity(0.52),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 20, color: AppTheme.textSecondaryColor),
+          const SizedBox(width: 10),
+          Expanded(
+            child: editable && controller != null
+                ? TextField(
+                    controller: controller,
+                    decoration: InputDecoration(
+                      labelText: label,
+                      isDense: true,
+                      fillColor: AppTheme.panelColor.withOpacity(0.75),
+                    ),
+                  )
+                : Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        label.toUpperCase(),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: AppTheme.textSecondaryColor,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        value.isEmpty ? '-' : value,
+                        style: const TextStyle(
+                          color: AppTheme.textPrimaryColor,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MediaSelector extends StatefulWidget {
+  final String title;
+  final String? currentUrl;
+  final File? newFile;
+  final bool editable;
+  final Future<void> Function() onPick;
+  final double width;
+  final double height;
+
+  const _MediaSelector({
+    required this.title,
+    required this.currentUrl,
+    required this.newFile,
+    required this.editable,
+    required this.onPick,
+    required this.width,
+    required this.height,
+  });
+
+  @override
+  State<_MediaSelector> createState() => _MediaSelectorState();
+}
+
+class _MediaSelectorState extends State<_MediaSelector> {
+  bool _hovering = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final hasImage = widget.newFile != null || widget.currentUrl != null;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          widget.title,
+          style: const TextStyle(
+            color: AppTheme.textSecondaryColor,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 8),
+        MouseRegion(
+          onEnter: (_) => setState(() => _hovering = true),
+          onExit: (_) => setState(() => _hovering = false),
+          child: GestureDetector(
+            onTap: widget.editable ? widget.onPick : null,
+            child: Container(
+              width: widget.width,
+              height: widget.height,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                border:
+                    Border.all(color: AppTheme.borderColor.withOpacity(0.75)),
+                color: AppTheme.panelColorSoft.withOpacity(0.66),
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  if (widget.newFile != null)
+                    Image.file(widget.newFile!, fit: BoxFit.cover)
+                  else if (widget.currentUrl != null)
+                    ProtectedImage(url: widget.currentUrl!)
+                  else
+                    const Center(
+                      child: Icon(
+                        Icons.add_photo_alternate_outlined,
+                        size: 30,
+                        color: AppTheme.textSecondaryColor,
                       ),
                     ),
-                    // Overlay de hover
-                    if (editable && _hovering)
-                      Container(
-                        width: width,
-                        height: height,
-                        decoration: BoxDecoration(
-                          color: Colors.black45,
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: const Center(
-                          child: Text(
-                            'Alterar',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
+                  if (widget.editable && _hovering)
+                    Container(
+                      color: Colors.black54,
+                      child: Center(
+                        child: Text(
+                          hasImage ? 'Alterar' : 'Adicionar',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700,
                           ),
                         ),
                       ),
-                    // Ícone padrão se não houver imagem
-                    if (!editable && newFile == null && currentUrl == null)
-                      Container(
-                        width: width,
-                        height: height,
-                        color: const Color(0xFF253444),
-                        child: const Center(
-                          child: Icon(Icons.add_a_photo,
-                              color: Colors.white24, size: 36),
-                        ),
-                      ),
-                    if (editable && newFile == null && currentUrl == null)
-                      Container(
-                        width: width,
-                        height: height,
-                        color: const Color(0xFF253444),
-                        child: const Center(
-                          child: Icon(Icons.add_a_photo,
-                              color: Colors.white54, size: 36),
-                        ),
-                      ),
-                  ],
-                ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _TagLabel extends StatelessWidget {
+  final String text;
+
+  const _TagLabel({required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: AppTheme.primaryColor.withOpacity(0.38)),
+        color: AppTheme.primaryColor.withOpacity(0.15),
+      ),
+      child: Text(
+        text,
+        style: const TextStyle(
+          color: AppTheme.textPrimaryColor,
+          fontWeight: FontWeight.w600,
+          fontSize: 12,
+        ),
+      ),
+    );
+  }
+}
+
+class _EmptyState extends StatelessWidget {
+  const _EmptyState();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Center(
+      child: GlassPanel(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.business_center_outlined,
+              size: 44,
+              color: AppTheme.textSecondaryColor,
+            ),
+            SizedBox(height: 12),
+            Text(
+              'Nenhuma empresa registada.',
+              style: TextStyle(
+                color: AppTheme.textPrimaryColor,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ],
-        );
-      },
+        ),
+      ),
+    );
+  }
+}
+
+class _ErrorState extends StatelessWidget {
+  final String message;
+  final VoidCallback onRetry;
+
+  const _ErrorState({
+    required this.message,
+    required this.onRetry,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: GlassPanel(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons.error_outline_rounded,
+              color: Colors.redAccent,
+              size: 40,
+            ),
+            const SizedBox(height: 10),
+            Text(
+              message,
+              style: const TextStyle(color: AppTheme.textSecondaryColor),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 14),
+            ElevatedButton(
+              onPressed: onRetry,
+              child: const Text('Tentar novamente'),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

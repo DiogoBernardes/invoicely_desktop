@@ -12,3 +12,9 @@ final supplierNotifierProvider = StateNotifierProvider<SupplierNotifier,
     AsyncValue<List<SupplierResponseDto>>>(
   (ref) => SupplierNotifier(ref.watch(supplierRepositoryProvider)),
 );
+
+final supplierByIdProvider =
+    FutureProvider.family<SupplierResponseDto, String>((ref, supplierId) async {
+  final notifier = ref.read(supplierNotifierProvider.notifier);
+  return notifier.loadSupplier(supplierId);
+});

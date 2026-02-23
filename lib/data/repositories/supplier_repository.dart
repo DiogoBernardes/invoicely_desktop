@@ -10,6 +10,8 @@ class SupplierRepository {
 
   Future<List<SupplierResponseDto>> fetchSuppliers() =>
       _service.getAllSuppliers();
+  Future<SupplierResponseDto> fetchSupplier(String id) =>
+      _service.getSupplier(id);
   Future<SupplierResponseDto> createSupplier(SupplierCreateDto dto) =>
       _service.createSupplier(dto);
   Future<SupplierResponseDto> updateSupplier(

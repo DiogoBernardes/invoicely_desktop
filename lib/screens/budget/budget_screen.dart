@@ -1,12 +1,18 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+
+import '../../core/errors/error_message_utils.dart';
+import '../../core/theme/app_theme.dart';
 import '../../data/dto/budget/budget_response_dto.dart';
 import '../../providers/budget_provider.dart';
 import '../../widgets/dialogs/budget/add_budget_dialog.dart';
 import '../../widgets/dialogs/budget/edit_budget_dialog.dart';
 import '../../widgets/dialogs/budget/remove_budget_dialog.dart';
 import '../../widgets/global_app_bar.dart';
+import '../../widgets/ui/table_ui.dart';
 import 'budget_details_screen.dart';
 
 class BudgetScreen extends ConsumerStatefulWidget {
@@ -20,34 +26,22 @@ class _BudgetScreenState extends ConsumerState<BudgetScreen> {
   final TextEditingController _searchController = TextEditingController();
   final TextEditingController _startDateController = TextEditingController();
   final TextEditingController _endDateController = TextEditingController();
-  late final TextEditingController _sortController;
 
   int _currentPage = 0;
-  final int _rowsPerPage = 10;
+  static const int _rowsPerPage = 10;
   String _searchQuery = '';
-
-  // Ordenação
-  String _sortField = 'date';
-  bool _sortAsc = true;
-
   DateTime? _startDate;
   DateTime? _endDate;
+  _BudgetSort _sort = _BudgetSort.dateDesc;
 
-  final currencyFormat = NumberFormat.currency(locale: 'pt_PT', symbol: '€');
-
-  @override
-  void initState() {
-    super.initState();
-    _sortController = TextEditingController(
-        text: '$_sortField-${_sortAsc ? 'Ascendente' : 'Descendente'}');
-  }
+  final NumberFormat _currencyFormat =
+      NumberFormat.currency(locale: 'pt_PT', symbol: 'EUR ');
 
   @override
   void dispose() {
     _searchController.dispose();
     _startDateController.dispose();
     _endDateController.dispose();
-    _sortController.dispose();
     super.dispose();
   }
 
@@ -56,414 +50,348 @@ class _BudgetScreenState extends ConsumerState<BudgetScreen> {
     final budgetsAsync = ref.watch(budgetNotifierProvider);
 
     return Scaffold(
-      appBar: const GlobalAppBar(title: 'Orçamentos'),
+      appBar: const GlobalAppBar(title: 'Orcamentos'),
       drawer: const GlobalDrawer(),
-      body: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 80, vertical: 40),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header + Add Button
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'Orçamentos',
-                  style: TextStyle(
-                      fontSize: 36,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white),
-                ),
-                ElevatedButton.icon(
-                  onPressed: _showAddBudgetDialog,
-                  icon: const Icon(Icons.add, size: 20),
-                  label: const Text('Adicionar Orçamento',
-                      style: TextStyle(fontWeight: FontWeight.w600)),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color.fromARGB(255, 36, 54, 71),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 20, vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                )
-              ],
-            ),
-            const SizedBox(height: 16),
-
-            Row(
-              children: [
-                // Pesquisa
-                Expanded(
-                  child: TextField(
-                    controller: _searchController,
-                    decoration: InputDecoration(
-                      hintText: 'Pesquisar por entidade, estado ou total...',
-                      prefixIcon: const Icon(Icons.search),
-                      border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12)),
-                      filled: true,
-                      fillColor: const Color.fromARGB(221, 36, 54, 71),
-                      contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 12),
-                    ),
-                    onChanged: (value) {
-                      setState(() {
-                        _searchQuery = value;
-                        _currentPage = 0;
-                      });
-                    },
-                  ),
-                ),
-                const SizedBox(width: 200),
-
-                // Data inicial
-                SizedBox(
-                  width: 150,
-                  child: TextField(
-                    controller: _startDateController,
-                    readOnly: true,
-                    decoration: InputDecoration(
-                      hintText: 'Data inicial',
-                      border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8)),
-                      filled: true,
-                      fillColor: const Color.fromARGB(221, 36, 54, 71),
-                      contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 8),
-                    ),
-                    style: const TextStyle(fontSize: 14),
-                    onTap: () async {
-                      final date = await showDatePicker(
-                        context: context,
-                        initialDate: _startDate ?? DateTime.now(),
-                        firstDate: DateTime(2000),
-                        lastDate: DateTime(2100),
-                      );
-                      if (date != null) {
-                        setState(() {
-                          _startDate = date;
-                          _startDateController.text =
-                              DateFormat('dd/MM/yyyy').format(date);
-                          _currentPage = 0;
-                        });
-                      }
-                    },
-                  ),
-                ),
-                const SizedBox(width: 8),
-
-                // Data final
-                SizedBox(
-                  width: 150,
-                  child: TextField(
-                    controller: _endDateController,
-                    readOnly: true,
-                    decoration: InputDecoration(
-                      hintText: 'Data final',
-                      border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8)),
-                      filled: true,
-                      fillColor: const Color.fromARGB(221, 36, 54, 71),
-                      contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 8),
-                    ),
-                    style: const TextStyle(fontSize: 14),
-                    onTap: () async {
-                      final date = await showDatePicker(
-                        context: context,
-                        initialDate: _endDate ?? DateTime.now(),
-                        firstDate: DateTime(2000),
-                        lastDate: DateTime(2100),
-                      );
-                      if (date != null) {
-                        setState(() {
-                          _endDate = date;
-                          _endDateController.text =
-                              DateFormat('dd/MM/yyyy').format(date);
-                          _currentPage = 0;
-                        });
-                      }
-                    },
-                  ),
-                ),
-                const SizedBox(width: 12),
-
-                // Dropdown de ordenação
-                SizedBox(
-                  width: 200,
-                  child: DropdownMenu<String>(
-                    controller: _sortController,
-                    initialSelection:
-                        '$_sortField-${_sortAsc ? 'Ascendente' : 'Descendente'}',
-                    enableFilter: false,
-                    label: const Text('Ordenar'),
-                    inputDecorationTheme: InputDecorationTheme(
-                      filled: true,
-                      fillColor: const Color.fromARGB(221, 36, 54, 71),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide: BorderSide.none,
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 8),
-                    ),
-                    dropdownMenuEntries: const [
-                      DropdownMenuEntry(
-                          value: 'date-Ascendente', label: 'Data Ascendente ↑'),
-                      DropdownMenuEntry(
-                          value: 'date-Descendente',
-                          label: 'Data Descendente ↓'),
-                      DropdownMenuEntry(
-                          value: 'total-Ascendente',
-                          label: 'Total Ascendente ↑'),
-                      DropdownMenuEntry(
-                          value: 'total-Descendente',
-                          label: 'Total Descendente ↓'),
-                    ],
-                    onSelected: (value) {
-                      if (value == null) return;
-                      setState(() {
-                        final parts = value.split('-');
-                        _sortField = parts[0];
-                        _sortAsc = parts[1] == 'Ascendente';
-                        _sortController.text = value;
-                        _currentPage = 0;
-                      });
-                    },
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 24),
-
-            // TABLE + PAGINATION
-            Expanded(
-              child: budgetsAsync.when(
-                loading: () => const Center(child: CircularProgressIndicator()),
-                error: (e, st) =>
-                    Center(child: Text('Erro ao carregar Orçamentos: $e')),
-                data: (budgets) {
-                  // FILTRO pesquisa + range datas
-                  final filtered = budgets.where((b) {
-                    final matchesSearch = b.entityName
-                            .toLowerCase()
-                            .contains(_searchQuery.toLowerCase()) ||
-                        b.state
-                            .toLowerCase()
-                            .contains(_searchQuery.toLowerCase()) ||
-                        b.total.toString().contains(_searchQuery);
-
-                    final inDateRange = (_startDate == null ||
-                            b.date.isAfter(_startDate!
-                                .subtract(const Duration(days: 1)))) &&
-                        (_endDate == null ||
-                            b.date.isBefore(
-                                _endDate!.add(const Duration(days: 1))));
-
-                    return matchesSearch && inDateRange;
-                  }).toList();
-
-                  // ORDENAR
-                  filtered.sort((a, b) {
-                    int cmp = 0;
-                    if (_sortField == 'date') {
-                      cmp = a.date.compareTo(b.date);
-                    } else if (_sortField == 'total') {
-                      cmp = a.total.compareTo(b.total);
-                    }
-                    return _sortAsc ? cmp : -cmp;
-                  });
-
-                  // PAGINAÇÃO
-                  final totalPages = (filtered.length / _rowsPerPage).ceil();
-                  final startIndex = _currentPage * _rowsPerPage;
-                  final endIndex = startIndex + _rowsPerPage;
-                  final pageBudgets = filtered.sublist(
-                    startIndex,
-                    endIndex > filtered.length ? filtered.length : endIndex,
-                  );
-                  final displayBudgets = List.generate(
-                    _rowsPerPage,
-                    (index) =>
-                        index < pageBudgets.length ? pageBudgets[index] : null,
-                  );
-
-                  const cellPadding =
-                      EdgeInsets.symmetric(horizontal: 16, vertical: 12);
-
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Expanded(
-                        child: SingleChildScrollView(
-                          scrollDirection: Axis.vertical,
-                          child: Container(
-                            decoration: BoxDecoration(
-                              border:
-                                  Border.all(color: Colors.white70, width: 1),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: DataTable(
-                              headingRowHeight: 56,
-                              headingRowColor: MaterialStateProperty.all(
-                                  const Color.fromARGB(221, 26, 38, 51)),
-                              dataRowColor: MaterialStateProperty.all(
-                                  const Color.fromARGB(255, 36, 54, 71)),
-                              columnSpacing: 0,
-                              horizontalMargin: 0,
-                              columns: [
-                                for (final label in [
-                                  'Entidade',
-                                  'Data',
-                                  'Desconto',
-                                  'Total',
-                                  'Estado',
-                                  'Ações'
-                                ])
-                                  DataColumn(
-                                    label: Container(
-                                      padding: cellPadding,
-                                      child: Text(
-                                        label,
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                              ],
-                              rows: displayBudgets.map((budget) {
-                                if (budget == null) {
-                                  return DataRow(
-                                    cells: List.generate(
-                                      6,
-                                      (index) => DataCell(Container(
-                                        padding: cellPadding,
-                                        child: const Text(''),
-                                      )),
-                                    ),
-                                  );
-                                }
-
-                                return DataRow(
-                                  cells: [
-                                    DataCell(Container(
-                                      padding: cellPadding,
-                                      child: Text(budget.entityName,
-                                          style: const TextStyle(
-                                              color: Colors.white)),
-                                    )),
-                                    DataCell(Container(
-                                      padding: cellPadding,
-                                      child: Text(
-                                          DateFormat('dd/MM/yyyy')
-                                              .format(budget.date),
-                                          style: const TextStyle(
-                                              color: Colors.white70)),
-                                    )),
-                                    DataCell(Container(
-                                      padding: cellPadding,
-                                      child: Text(
-                                          currencyFormat
-                                              .format(budget.discount),
-                                          style: const TextStyle(
-                                              color: Colors.white70)),
-                                    )),
-                                    DataCell(Container(
-                                      padding: cellPadding,
-                                      child: Text(
-                                          currencyFormat.format(budget.total),
-                                          style: const TextStyle(
-                                              color: Colors.white70)),
-                                    )),
-                                    DataCell(Container(
-                                      padding: cellPadding,
-                                      child: Text(budget.state,
-                                          style: const TextStyle(
-                                              color: Colors.white70)),
-                                    )),
-                                    DataCell(Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        IconButton(
-                                          icon: const Icon(Icons.remove_red_eye,
-                                              size: 18),
-                                          onPressed: () {
-                                            Navigator.push(
-                                              context,
-                                              MaterialPageRoute(
-                                                builder: (_) =>
-                                                    BudgetDetailScreen(
-                                                        budgetId: budget.id),
-                                              ),
-                                            );
-                                          },
-                                          color: Colors.green.shade400,
-                                        ),
-                                        if (budget.state == 'PENDENTE')
-                                          IconButton(
-                                            icon: const Icon(Icons.edit,
-                                                size: 18),
-                                            onPressed: () =>
-                                                _editBudget(budget),
-                                            color: Colors.blue.shade400,
-                                          ),
-                                        IconButton(
-                                          icon: const Icon(Icons.delete,
-                                              size: 18),
-                                          onPressed: () =>
-                                              _removeBudget(budget),
-                                          color: Colors.red.shade400,
-                                        ),
-                                      ],
-                                    )),
-                                  ],
-                                );
-                              }).toList(),
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-
-                      // Pagination
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: [
-                          Text(
-                            'Página ${_currentPage + 1} de ${totalPages == 0 ? 1 : totalPages}',
-                            style: const TextStyle(color: Colors.white70),
-                          ),
-                          const SizedBox(width: 16),
-                          IconButton(
-                            onPressed: _currentPage > 0
-                                ? () => setState(() => _currentPage--)
-                                : null,
-                            icon: const Icon(Icons.arrow_back_ios, size: 18),
-                            color: Colors.white70,
-                          ),
-                          IconButton(
-                            onPressed: _currentPage < totalPages - 1
-                                ? () => setState(() => _currentPage++)
-                                : null,
-                            icon: const Icon(Icons.arrow_forward_ios, size: 18),
-                            color: Colors.white70,
-                          ),
-                        ],
-                      ),
-                    ],
-                  );
-                },
+      body: TablePageShell(
+        title: 'Orcamentos',
+        icon: Icons.description_rounded,
+        actions: [
+          OutlinedButton.icon(
+            onPressed: () =>
+                ref.read(budgetNotifierProvider.notifier).loadBudgets(),
+            icon: const Icon(Icons.refresh_rounded, size: 18),
+            label: const Text('Atualizar'),
+          ),
+          ElevatedButton.icon(
+            onPressed: _showAddBudgetDialog,
+            icon: const Icon(Icons.add_rounded, size: 20),
+            label: const Text('Novo Orcamento'),
+          ),
+        ],
+        filters: _buildFilters(),
+        content: budgetsAsync.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (e, st) => Center(
+            child: Text(
+              ErrorMessageUtils.fromObject(
+                e,
+                fallback: 'Erro ao carregar orcamentos.',
               ),
             ),
-          ],
+          ),
+          data: (budgets) => _buildTableContent(budgets),
         ),
       ),
     );
+  }
+
+  Widget _buildFilters() {
+    final trailingFilters = Wrap(
+      spacing: 10,
+      runSpacing: 10,
+      children: [
+        _DateField(
+          label: 'Data inicial',
+          controller: _startDateController,
+          onTap: () => _pickStartDate(),
+          onClear: _startDate == null ? null : _clearStartDate,
+        ),
+        _DateField(
+          label: 'Data final',
+          controller: _endDateController,
+          onTap: () => _pickEndDate(),
+          onClear: _endDate == null ? null : _clearEndDate,
+        ),
+        SizedBox(
+          width: 250,
+          child: DropdownButtonFormField<_BudgetSort>(
+            value: _sort,
+            isExpanded: true,
+            decoration: const InputDecoration(
+              labelText: 'Ordenar',
+              prefixIcon: Icon(Icons.swap_vert_rounded, size: 18),
+            ),
+            items: _BudgetSort.values
+                .map(
+                  (value) => DropdownMenuItem<_BudgetSort>(
+                    value: value,
+                    child: Text(_sortLabel(value)),
+                  ),
+                )
+                .toList(),
+            onChanged: (value) {
+              if (value == null) return;
+              setState(() {
+                _sort = value;
+                _currentPage = 0;
+              });
+            },
+          ),
+        ),
+      ],
+    );
+
+    return Column(
+      children: [
+        TableSearchField(
+          controller: _searchController,
+          hintText: 'Pesquisar por entidade, estado ou total',
+          onChanged: (value) {
+            setState(() {
+              _searchQuery = value;
+              _currentPage = 0;
+            });
+          },
+        ),
+        const SizedBox(height: 10),
+        Align(alignment: Alignment.centerLeft, child: trailingFilters),
+      ],
+    );
+  }
+
+  Widget _buildTableContent(List<BudgetResponseDTO> budgets) {
+    final query = _searchQuery.trim().toLowerCase();
+    final filtered = budgets.where((budget) {
+      final matchesSearch = budget.entityName.toLowerCase().contains(query) ||
+          budget.state.toLowerCase().contains(query) ||
+          budget.total.toString().contains(query) ||
+          (budget.referenceCode ?? budget.id).toLowerCase().contains(query);
+
+      final inStartRange =
+          _startDate == null || !budget.date.isBefore(_startDate!);
+      final inEndRange = _endDate == null || !budget.date.isAfter(_endDate!);
+      return matchesSearch && inStartRange && inEndRange;
+    }).toList();
+
+    filtered.sort((a, b) {
+      switch (_sort) {
+        case _BudgetSort.dateAsc:
+          return a.date.compareTo(b.date);
+        case _BudgetSort.dateDesc:
+          return b.date.compareTo(a.date);
+        case _BudgetSort.totalAsc:
+          return a.total.compareTo(b.total);
+        case _BudgetSort.totalDesc:
+          return b.total.compareTo(a.total);
+      }
+    });
+
+    final totalPages =
+        max(1, ((filtered.length + _rowsPerPage - 1) / _rowsPerPage).floor());
+    final effectivePage = min(max(_currentPage, 0), totalPages - 1);
+    final startIndex = effectivePage * _rowsPerPage;
+    final endIndex = min(startIndex + _rowsPerPage, filtered.length);
+    final pageBudgets = startIndex < filtered.length
+        ? filtered.sublist(startIndex, endIndex)
+        : <BudgetResponseDTO>[];
+    final displayBudgets = List<BudgetResponseDTO?>.generate(
+      _rowsPerPage,
+      (index) => index < pageBudgets.length ? pageBudgets[index] : null,
+    );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Expanded(
+          child: AppTableContainer(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final tableWidth = max(constraints.maxWidth, 1080.0);
+                return SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: SizedBox(
+                    width: tableWidth,
+                    child: DataTable(
+                      headingRowHeight: 56,
+                      dataRowMinHeight: 54,
+                      dataRowMaxHeight: 64,
+                      horizontalMargin: 0,
+                      columnSpacing: 0,
+                      headingRowColor: WidgetStateProperty.all(
+                        AppTheme.panelColorSoft.withOpacity(0.95),
+                      ),
+                      dataRowColor: WidgetStateProperty.resolveWith((states) {
+                        if (states.contains(WidgetState.selected)) {
+                          return AppTheme.primaryColor.withOpacity(0.15);
+                        }
+                        return AppTheme.panelColor.withOpacity(0.78);
+                      }),
+                      columns: const [
+                        DataColumn(
+                          label: _HeaderCell('N'),
+                        ),
+                        DataColumn(
+                          label: _HeaderCell('Entidade'),
+                        ),
+                        DataColumn(
+                          label: _HeaderCell('Data'),
+                        ),
+                        DataColumn(
+                          label: _HeaderCell('Desconto'),
+                        ),
+                        DataColumn(
+                          label: _HeaderCell('Total'),
+                        ),
+                        DataColumn(
+                          label: _HeaderCell('Estado'),
+                        ),
+                        DataColumn(
+                          label: _HeaderCell('Acoes'),
+                        ),
+                      ],
+                      rows: displayBudgets
+                          .map((budget) => _buildRow(budget))
+                          .toList(),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        TablePaginationBar(
+          currentPage: effectivePage + 1,
+          totalPages: totalPages,
+          onPrevious: effectivePage > 0
+              ? () => setState(() => _currentPage = effectivePage - 1)
+              : null,
+          onNext: effectivePage < totalPages - 1
+              ? () => setState(() => _currentPage = effectivePage + 1)
+              : null,
+        ),
+      ],
+    );
+  }
+
+  DataRow _buildRow(BudgetResponseDTO? budget) {
+    if (budget == null) {
+      return const DataRow(
+        cells: [
+          DataCell(_EmptyCell()),
+          DataCell(_EmptyCell()),
+          DataCell(_EmptyCell()),
+          DataCell(_EmptyCell()),
+          DataCell(_EmptyCell()),
+          DataCell(_EmptyCell()),
+          DataCell(_EmptyCell()),
+        ],
+      );
+    }
+
+    return DataRow(
+      cells: [
+        DataCell(_BodyCell(budget.referenceCode ?? budget.id, isPrimary: true)),
+        DataCell(_BodyCell(budget.entityName)),
+        DataCell(_BodyCell(DateFormat('dd/MM/yyyy').format(budget.date))),
+        DataCell(_BodyCell(_currencyFormat.format(budget.discount))),
+        DataCell(_BodyCell(_currencyFormat.format(budget.total))),
+        DataCell(
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+            child: _StatusBadge(state: budget.state),
+          ),
+        ),
+        DataCell(
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TableActionIconButton(
+                  icon: Icons.remove_red_eye_outlined,
+                  color: Colors.tealAccent,
+                  tooltip: 'Ver detalhes',
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => BudgetDetailScreen(budgetId: budget.id),
+                      ),
+                    );
+                  },
+                ),
+                if (budget.state.toUpperCase() == 'PENDENTE') ...[
+                  const SizedBox(width: 8),
+                  TableActionIconButton(
+                    icon: Icons.edit_rounded,
+                    color: Colors.lightBlueAccent,
+                    tooltip: 'Editar orcamento',
+                    onPressed: () => _editBudget(budget),
+                  ),
+                ],
+                const SizedBox(width: 8),
+                TableActionIconButton(
+                  icon: Icons.delete_outline_rounded,
+                  color: Colors.redAccent,
+                  tooltip: 'Remover orcamento',
+                  onPressed: () => _removeBudget(budget),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _pickStartDate() async {
+    final pickedDate = await showDatePicker(
+      context: context,
+      initialDate: _startDate ?? DateTime.now(),
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2100),
+    );
+    if (pickedDate == null) return;
+    setState(() {
+      _startDate = pickedDate;
+      _startDateController.text = DateFormat('dd/MM/yyyy').format(pickedDate);
+      _currentPage = 0;
+    });
+  }
+
+  Future<void> _pickEndDate() async {
+    final pickedDate = await showDatePicker(
+      context: context,
+      initialDate: _endDate ?? DateTime.now(),
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2100),
+    );
+    if (pickedDate == null) return;
+    setState(() {
+      _endDate = pickedDate;
+      _endDateController.text = DateFormat('dd/MM/yyyy').format(pickedDate);
+      _currentPage = 0;
+    });
+  }
+
+  void _clearStartDate() {
+    setState(() {
+      _startDate = null;
+      _startDateController.clear();
+      _currentPage = 0;
+    });
+  }
+
+  void _clearEndDate() {
+    setState(() {
+      _endDate = null;
+      _endDateController.clear();
+      _currentPage = 0;
+    });
+  }
+
+  String _sortLabel(_BudgetSort value) {
+    switch (value) {
+      case _BudgetSort.dateAsc:
+        return 'Data ascendente';
+      case _BudgetSort.dateDesc:
+        return 'Data descendente';
+      case _BudgetSort.totalAsc:
+        return 'Total ascendente';
+      case _BudgetSort.totalDesc:
+        return 'Total descendente';
+    }
   }
 
   void _showAddBudgetDialog() {
@@ -507,6 +435,147 @@ class _BudgetScreenState extends ConsumerState<BudgetScreen> {
               .deleteBudget(budget.id);
         },
       ),
+    );
+  }
+}
+
+enum _BudgetSort {
+  dateAsc,
+  dateDesc,
+  totalAsc,
+  totalDesc,
+}
+
+class _DateField extends StatelessWidget {
+  final String label;
+  final TextEditingController controller;
+  final VoidCallback onTap;
+  final VoidCallback? onClear;
+
+  const _DateField({
+    required this.label,
+    required this.controller,
+    required this.onTap,
+    this.onClear,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 190,
+      child: TextField(
+        controller: controller,
+        readOnly: true,
+        onTap: onTap,
+        decoration: InputDecoration(
+          hintText: label,
+          isDense: true,
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+          suffixIcon: onClear == null
+              ? null
+              : IconButton(
+                  onPressed: onClear,
+                  icon: const Icon(Icons.close_rounded, size: 16),
+                ),
+        ),
+      ),
+    );
+  }
+}
+
+class _StatusBadge extends StatelessWidget {
+  final String state;
+
+  const _StatusBadge({required this.state});
+
+  @override
+  Widget build(BuildContext context) {
+    final normalized = state.toUpperCase();
+    late final Color tone;
+    switch (normalized) {
+      case 'ACEITE':
+        tone = Colors.greenAccent;
+        break;
+      case 'REJEITADO':
+        tone = Colors.redAccent;
+        break;
+      default:
+        tone = Colors.amberAccent;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: tone.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: tone.withOpacity(0.35)),
+      ),
+      child: Text(
+        normalized,
+        style: TextStyle(
+          color: tone,
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+}
+
+class _HeaderCell extends StatelessWidget {
+  final String label;
+
+  const _HeaderCell(this.label);
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      child: Text(
+        label,
+        style: const TextStyle(
+          color: AppTheme.textPrimaryColor,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+}
+
+class _BodyCell extends StatelessWidget {
+  final String value;
+  final bool isPrimary;
+
+  const _BodyCell(this.value, {this.isPrimary = false});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+      child: Text(
+        value,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(
+          color: isPrimary
+              ? AppTheme.textPrimaryColor
+              : AppTheme.textSecondaryColor,
+          fontWeight: isPrimary ? FontWeight.w600 : FontWeight.w500,
+        ),
+      ),
+    );
+  }
+}
+
+class _EmptyCell extends StatelessWidget {
+  const _EmptyCell();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Padding(
+      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      child: SizedBox(height: 20),
     );
   }
 }

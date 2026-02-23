@@ -1,6 +1,8 @@
 import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
 import '../../../config/dio_config.dart';
+import '../../core/errors/error_message_utils.dart';
 import '../dto/product/product_create_dto.dart';
 import '../dto/product/product_response_dto.dart';
 import '../dto/product/product_update_dto.dart';
@@ -27,7 +29,10 @@ class ProductService {
           .toList();
     } on DioException catch (e) {
       throw Exception(
-        'Erro ao obter produtos: ${e.response?.data ?? e.message}',
+        ErrorMessageUtils.fromDio(
+          e,
+          fallback: 'Erro ao obter produtos.',
+        ),
       );
     }
   }
@@ -42,7 +47,10 @@ class ProductService {
       return ProductResponseDTO.fromJson(response.data);
     } on DioException catch (e) {
       throw Exception(
-        'Erro ao obter produto: ${e.response?.data ?? e.message}',
+        ErrorMessageUtils.fromDio(
+          e,
+          fallback: 'Erro ao obter produto.',
+        ),
       );
     }
   }
@@ -58,13 +66,18 @@ class ProductService {
       return ProductResponseDTO.fromJson(response.data);
     } on DioException catch (e) {
       throw Exception(
-        'Erro ao criar produto: ${e.response?.data ?? e.message}',
+        ErrorMessageUtils.fromDio(
+          e,
+          fallback: 'Erro ao criar produto.',
+        ),
       );
     }
   }
 
   Future<ProductResponseDTO> updateProduct(
-      String id, ProductUpdateDTO dto) async {
+    String id,
+    ProductUpdateDTO dto,
+  ) async {
     try {
       final token = await _getToken();
       final response = await _dio.put(
@@ -75,7 +88,10 @@ class ProductService {
       return ProductResponseDTO.fromJson(response.data);
     } on DioException catch (e) {
       throw Exception(
-        'Erro ao atualizar produto: ${e.response?.data ?? e.message}',
+        ErrorMessageUtils.fromDio(
+          e,
+          fallback: 'Erro ao atualizar produto.',
+        ),
       );
     }
   }
@@ -89,7 +105,10 @@ class ProductService {
       );
     } on DioException catch (e) {
       throw Exception(
-        'Erro ao remover produto: ${e.response?.data ?? e.message}',
+        ErrorMessageUtils.fromDio(
+          e,
+          fallback: 'Erro ao remover produto.',
+        ),
       );
     }
   }
